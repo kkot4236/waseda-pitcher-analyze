@@ -20,10 +20,8 @@ def load_all_data_from_folder(folder_path):
         except:
             temp_df = pd.read_csv(filename, encoding='cp932')
             
-        # ファイル名を小文字で取得して判定
         fname_lower = os.path.basename(filename).lower()
         
-        # カテゴリ判定（小文字のファイル名に対応）
         if "sbp" in fname_lower: category = "SBP"
         elif "vs" in fname_lower: category = "vs"
         elif "pbp" in fname_lower: category = "PBP"
@@ -39,12 +37,19 @@ def load_all_data_from_folder(folder_path):
         temp_df = temp_df.rename(columns=rename_dict)
         temp_df['DataCategory'] = category
 
+        # 投手名・指標のクリーニング
         if 'Pitcher First Name' in temp_df.columns:
             temp_df['Pitcher'] = temp_df['Pitcher First Name'].fillna("Unknown").astype(str)
         elif 'Pitcher' in temp_df.columns:
             temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip()
         else:
             temp_df['Pitcher'] = "Unknown"
+
+        # 基本的な指標計算フラグ
+        if 'PitchCall' in temp_df.columns:
+            temp_df['is_strike'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
+            temp_df['is_swing'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
+            temp_df['is_whiff'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING'] else 0)
 
         if 'Pitch Created At' in temp_df.columns:
             temp_df['Date'] = pd.to_datetime(temp_df['Pitch Created At']).dt.date
@@ -68,33 +73,23 @@ df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 
 if df is not None:
     PITCH_ORDER = ["Fastball", "FB", "Slider", "SL", "Cutter", "CT", "Curveball", "CB", "Splitter", "SPL", "ChangeUp", "CH", "TwoSeamFastBall", "OneSeam"]
-    
-    # タブ設定（2番目をオープン戦、4番目をpitchingに変更）
-    tabs = st.tabs(["🔹 SBP", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"])
+    tabs = st.tabs(["🔹 SBP", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching", "📊 比較(SBP vs オープン戦)"])
 
     def render_filters(data_subset, key_suffix, show_runner_filter=True):
         raw_p_list = data_subset['Pitcher'].unique()
-        p_list = sorted([
-            str(p) for p in raw_p_list 
-            if str(p).strip().lower() not in ['0', '0.0', 'nan', 'unknown', 'none', '']
-        ])
-        
+        p_list = sorted([str(p) for p in raw_p_list if str(p).strip().lower() not in ['0', '0.0', 'nan', 'unknown', 'none', '']])
         col1, col2, col3 = st.columns([1, 1.2, 1])
-        with col1:
-            sel_pitcher = st.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{key_suffix}")
+        with col1: sel_pitcher = st.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{key_suffix}")
         with col2:
             d_list = sorted([str(d) for d in data_subset['DateLabel'].unique()], reverse=True)
             sel_date = st.selectbox("日付を選択", ["すべて"] + d_list, key=f"d_{key_suffix}")
-        
         f = data_subset.copy()
         if sel_pitcher != "すべて": f = f[f['Pitcher'] == sel_pitcher]
         if sel_date != "すべて": f = f[f['DateLabel'] == sel_date]
-
         if show_runner_filter:
             with col3:
                 st.write("ランナー状況")
                 sel_runner = st.radio("", ["すべて", "通常", "クイック"], horizontal=True, key=f"r_{key_suffix}", label_visibility="collapsed")
-            
             runner_col = next((col for col in f.columns if "runn" in col.lower()), None)
             if runner_col:
                 f['has_runner'] = f[runner_col].apply(lambda x: 0 if pd.isna(x) or str(x).strip().lower() in ['0', '0.0', 'none', '', 'nan'] else 1)
@@ -104,58 +99,78 @@ if df is not None:
 
     def render_stats_tab(f_data):
         if f_data.empty: return st.warning("データがありません。")
-        f_data['is_strike'] = f_data['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
-        f_data['is_swing'] = f_data['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
-        f_data['is_whiff'] = f_data['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING'] else 0)
-        
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h")
         m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean() * 100):.1f} %")
-        
         summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
         summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
         summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
         summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
         summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
         summary['ストライク率'] *= 100; summary['スイング率'] *= 100
-        
         col_table, col_pie = st.columns([2, 1])
         with col_table: st.table(summary[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']].style.format('{:.1f}'))
         with col_pie:
-            st.write("球種別投球割合"); plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4))
-            ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
-            st.pyplot(fig_p)
-            
-        st.subheader("🗓 カウント別 投球割合")
-        f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
-        count_data = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
-        st.bar_chart(count_data.div(count_data.sum(axis=1).replace(0, 1), axis=0) * 100)
+            st.write("球種別投球割合"); plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4)); ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors); st.pyplot(fig_p)
 
     def render_visual_tab(f_data):
         if f_data.empty: return st.warning("データがありません。")
         m1, m2, m3 = st.columns(3); m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h"); m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h")
+        st.write("📍 **到達位置**"); plt.clf(); fig, ax = plt.subplots(figsize=(5, 5)); ax.add_patch(plt.Rectangle((-25, 45), 50, 60, fill=False, color='black', lw=2))
+        for pt in [p for p in PITCH_ORDER if p in f_data['TaggedPitchType'].unique()]:
+            sub = f_data[f_data['TaggedPitchType'] == pt]
+            if 'PlateLocSide' in sub.columns: ax.scatter(sub['PlateLocSide'], sub['PlateLocHeight'], label=pt, alpha=0.6)
+        ax.set_xlim(-80, 80); ax.set_ylim(-20, 150); ax.set_aspect('equal'); ax.legend(); ax.grid(True, alpha=0.3); st.pyplot(fig)
+
+    # 💥 新機能：ストライク率・スイング率 比較タブ 💥
+    def render_comparison_tab(all_data):
+        sbp_pitchers = set(all_data[all_data['DataCategory']=="SBP"]['Pitcher'].unique())
+        vs_pitchers = set(all_data[all_data['DataCategory']=="vs"]['Pitcher'].unique())
+        common_pitchers = sorted(list(sbp_pitchers & vs_pitchers))
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("🎯 **ムーブメント (-80 to 80)**"); plt.clf(); fig, ax = plt.subplots(figsize=(5, 5)); ax.axhline(0, color='black', lw=1); ax.axvline(0, color='black', lw=1)
-            for pt in [p for p in PITCH_ORDER if p in f_data['TaggedPitchType'].unique()]:
-                sub = f_data[f_data['TaggedPitchType'] == pt]; ax.scatter(sub['HorzBreak'], sub['InducedVertBreak'], label=pt, alpha=0.6)
-            ax.set_xlim(-80, 80); ax.set_ylim(-80, 80); ax.legend(); ax.grid(True, alpha=0.3); st.pyplot(fig)
-        with col2:
-            st.write("📍 **到達位置**"); plt.clf(); fig, ax = plt.subplots(figsize=(5, 5)); ax.add_patch(plt.Rectangle((-25, 45), 50, 60, fill=False, color='black', lw=2))
-            for pt in [p for p in PITCH_ORDER if p in f_data['TaggedPitchType'].unique()]:
-                sub = f_data[f_data['TaggedPitchType'] == pt]
-                if 'PlateLocSide' in sub.columns: ax.scatter(sub['PlateLocSide'], sub['PlateLocHeight'], label=pt, alpha=0.6)
-            ax.set_xlim(-80, 80); ax.set_ylim(-20, 150); ax.set_aspect('equal'); ax.grid(True, alpha=0.3); st.pyplot(fig)
-            
-        st.subheader("⚡ 投球データ一覧 (球速順)")
-        cols = [c for c in ['TaggedPitchType', 'RelSpeed', 'InducedVertBreak', 'HorzBreak', 'PitchCall'] if c in f_data.columns]
-        st.dataframe(f_data[cols].sort_values('RelSpeed', ascending=False).style.format({'RelSpeed': '{:.1f}', 'InducedVertBreak': '{:.1f}', 'HorzBreak': '{:.1f}'}), use_container_width=True)
+        if not common_pitchers: return st.info("SBPとオープン戦の両方にデータがある投手がまだいません。")
+        
+        sel_p = st.selectbox("比較する投手を選択", common_pitchers, key="comp_p")
+        c_sbp = all_data[(all_data['Pitcher'] == sel_p) & (all_data['DataCategory']=="SBP")]
+        c_vs = all_data[(all_data['Pitcher'] == sel_p) & (all_data['DataCategory']=="vs")]
+        
+        st.subheader(f"📊 {sel_p}投手の練習(SBP) vs 実戦(オープン戦)")
+        
+        # 主要指標の横並び比較
+        m1, m2, m3 = st.columns(3)
+        def get_delta(v1, v2): return f"{(v1-v2)*100:+.1f}%" if pd.notnull(v1) and pd.notnull(v2) else "N/A"
+        
+        m1.metric("ストライク率 (実戦)", f"{c_vs['is_strike'].mean()*100:.1f}%", delta=get_delta(c_vs['is_strike'].mean(), c_sbp['is_strike'].mean()))
+        m2.metric("スイング率 (実戦)", f"{c_vs['is_swing'].mean()*100:.1f}%", delta=get_delta(c_vs['is_swing'].mean(), c_sbp['is_swing'].mean()))
+        whiff_vs = c_vs['is_whiff'].sum() / c_vs['is_swing'].sum() if c_vs['is_swing'].sum() > 0 else 0
+        whiff_sbp = c_sbp['is_whiff'].sum() / c_sbp['is_swing'].sum() if c_sbp['is_swing'].sum() > 0 else 0
+        m3.metric("Whiff % (実戦)", f"{whiff_vs*100:.1f}%", delta=get_delta(whiff_vs, whiff_sbp))
+
+        # 球種別の詳細表
+        st.write("### 📈 球種別 指標比較")
+        
+        def get_summary(df_sub):
+            sum_df = df_sub.groupby('TaggedPitchType').agg({'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'}).rename(columns={'is_strike': 'スト率', 'is_swing': 'スイング率'})
+            sum_df['Whiff %'] = (sum_df['is_whiff'] / df_sub.groupby('TaggedPitchType')['is_swing'].sum()).fillna(0)
+            return sum_df[['スト率', 'スイング率', 'Whiff %']] * 100
+
+        s_sbp = get_summary(c_sbp)
+        s_vs = get_summary(c_vs)
+        
+        comp_table = s_vs.join(s_sbp, lsuffix='(実戦)', rsuffix='(練習)')
+        # 差分を計算
+        for col in ['スト率', 'スイング率', 'Whiff %']:
+            comp_table[f'{col}差'] = comp_table[f'{col}(実戦)'] - comp_table[f'{col}(練習)']
+        
+        # 表示する列を整理
+        display_cols = ['スト率(練習)', 'スト率(実戦)', 'スト率差', 'スイング率(練習)', 'スイング率(実戦)', 'スイング率差', 'Whiff %(練習)', 'Whiff %(実戦)', 'Whiff %差']
+        st.dataframe(comp_table[display_cols].style.format('{:.1f}').background_gradient(cmap='RdBu', subset=[c for c in comp_table.columns if '差' in c]))
 
     # --- 各タブの実行 ---
-    with tabs[0]: render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp", show_runner_filter=True))
-    with tabs[1]: render_stats_tab(render_filters(df[df['DataCategory']=="vs"], "vs", show_runner_filter=True))
+    with tabs[0]: render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp"))
+    with tabs[1]: render_stats_tab(render_filters(df[df['DataCategory']=="vs"], "vs"))
     with tabs[2]: render_visual_tab(render_filters(df[df['DataCategory']=="PBP"], "pbp", show_runner_filter=False))
     with tabs[3]: render_visual_tab(render_filters(df[df['DataCategory']=="pitching"], "pitching", show_runner_filter=False))
+    with tabs[4]: render_comparison_tab(df)
 else:
     st.error("dataフォルダにCSVが見つかりません。")
