@@ -134,11 +134,11 @@ if df is not None:
             display_df[col] = display_df[col].apply(lambda x: f"{x:.1f} %")
         display_df['投球数'] = display_df['投球数'].astype(int)
 
-        # 💥 表と円グラフを横に並べるレイアウト
-        st.write("### 📊 球種別分析")
-        col_left, col_right = st.columns([1.8, 1]) # 左(表)を少し広く
+        # 表と円グラフのレイアウト
+        col_left, col_right = st.columns([1.8, 1])
         
         with col_left:
+            st.write("### 📊 球種別分析")
             st.markdown("""
                 <style>
                 .stTable td, .stTable th { text-align: center !important; }
@@ -149,12 +149,13 @@ if df is not None:
             st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
 
         with col_right:
+            # 💥 グラフの外側にタイトルを配置
+            st.write("### 🥧 投球割合")
             plt.clf(); fig, ax = plt.subplots(figsize=(4, 4))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
-            ax.set_title("投球割合")
+            # 💥 ax.set_title("投球割合") を削除
             st.pyplot(fig)
 
-        # カウント別グラフは独立したセクションとして下に配置
         st.write("### 🗓 カウント別 投球割合")
         f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
         cnt_map = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
