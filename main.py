@@ -44,7 +44,6 @@ def load_all_data_from_folder(folder_path):
         else:
             temp_df['Pitcher'] = "Unknown"
 
-        # 指標フラグ
         if 'PitchCall' in temp_df.columns:
             temp_df['is_strike'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_swing'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
@@ -110,11 +109,12 @@ if df is not None:
         summary['ストライク率'] *= 100; summary['スイング率'] *= 100
         
         col_table, col_pie = st.columns([2, 1])
-        with col_table: st.table(summary[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']].style.format('{:.1f}'))
+        with col_table:
+            st.table(summary[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']].style.format('{:.1f}'))
+            st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100 (スイングした際に空振りを奪った割合)")
         with col_pie:
             st.write("球種別投球割合"); plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4)); ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors); st.pyplot(fig_p)
 
-        # 💥 カウント別投球割合グラフ 💥
         st.subheader("🗓 カウント別 投球割合")
         f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
         count_data = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
@@ -161,6 +161,7 @@ if df is not None:
             comp_table[f'{col}差'] = comp_table[f'{col}(実戦)'] - comp_table[f'{col}(練習)']
         display_cols = ['スト率(練習)', 'スト率(実戦)', 'スト率差', 'スイング率(練習)', 'スイング率(実戦)', 'スイング率差', 'Whiff %(練習)', 'Whiff %(実戦)', 'Whiff %差']
         st.dataframe(comp_table[[c for c in display_cols if c in comp_table.columns]].style.format('{:.1f}').background_gradient(cmap='RdBu', subset=[c for c in comp_table.columns if '差' in c]))
+        st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100 (スイングした際に空振りを奪った割合)")
 
     # --- 各タブの描画 ---
     with tabs[0]: render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp"))
