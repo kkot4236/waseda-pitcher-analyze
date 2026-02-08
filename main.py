@@ -44,10 +44,17 @@ def load_all_data_from_folder(folder_path):
         else:
             temp_df['Pitcher'] = "Unknown"
 
+        # 基本指標フラグ
         if 'PitchCall' in temp_df.columns:
             temp_df['is_strike'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_swing'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_whiff'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING'] else 0)
+
+        # 💥 初球判定フラグ（Balls=0 かつ Strikes=0）
+        if 'Balls' in temp_df.columns and 'Strikes' in temp_df.columns:
+            temp_df['is_first_pitch'] = ((temp_df['Balls'] == 0) & (temp_df['Strikes'] == 0)).astype(int)
+        else:
+            temp_df['is_first_pitch'] = 0
 
         if 'Pitch Created At' in temp_df.columns:
             temp_df['Date'] = pd.to_datetime(temp_df['Pitch Created At']).dt.date
@@ -97,9 +104,16 @@ if df is not None:
 
     def render_stats_tab(f_data):
         if f_data.empty: return st.warning("データがありません。")
+        
+        # 💥 指標計算（初球ストライク率を追加）
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h")
-        m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean() * 100):.1f} %")
+        first_pitches = f_data[f_data['is_first_pitch'] == 1]
+        f_strike_pct = (first_pitches['is_strike'].mean() * 100) if not first_pitches.empty else 0.0
+        
+        m1.metric("投球数", f"{len(f_data)} 球")
+        m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h")
+        m3.metric("ストライク率", f"{(f_data['is_strike'].mean() * 100):.1f} %")
+        m4.metric("初球ストライク率", f"{f_strike_pct:.1f} %")
         
         summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
         summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
@@ -111,7 +125,7 @@ if df is not None:
         col_table, col_pie = st.columns([2, 1])
         with col_table:
             st.table(summary[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']].style.format('{:.1f}'))
-            st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100 (スイングした際に空振りを奪った割合)")
+            st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
         with col_pie:
             st.write("球種別投球割合"); plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4)); ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors); st.pyplot(fig_p)
 
@@ -142,26 +156,27 @@ if df is not None:
         c_vs = all_data[(all_data['Pitcher'] == sel_p) & (all_data['DataCategory']=="vs")]
         
         st.subheader(f"📊 {sel_p}投手の練習(SBP) vs 実戦(オープン戦)")
-        m1, m2, m3 = st.columns(3)
+        m1, m2, m3, m4 = st.columns(4)
         def get_delta(v1, v2): return f"{(v1-v2)*100:+.1f}%" if pd.notnull(v1) and pd.notnull(v2) else "N/A"
-        m1.metric("ストライク率 (実戦)", f"{c_vs['is_strike'].mean()*100:.1f}%", delta=get_delta(c_vs['is_strike'].mean(), c_sbp['is_strike'].mean()))
-        m2.metric("スイング率 (実戦)", f"{c_vs['is_swing'].mean()*100:.1f}%", delta=get_delta(c_vs['is_swing'].mean(), c_sbp['is_swing'].mean()))
+        
+        fs_vs = c_vs[c_vs['is_first_pitch']==1]['is_strike'].mean()
+        fs_sbp = c_sbp[c_sbp['is_first_pitch']==1]['is_strike'].mean()
+        m1.metric("初球ｽﾄﾗｲｸ率 (実戦)", f"{(fs_vs or 0)*100:.1f}%", delta=get_delta(fs_vs or 0, fs_sbp or 0))
+        m2.metric("全体ｽﾄﾗｲｸ率 (実戦)", f"{c_vs['is_strike'].mean()*100:.1f}%", delta=get_delta(c_vs['is_strike'].mean(), c_sbp['is_strike'].mean()))
+        m3.metric("スイング率 (実戦)", f"{c_vs['is_swing'].mean()*100:.1f}%", delta=get_delta(c_vs['is_swing'].mean(), c_sbp['is_swing'].mean()))
         whiff_vs = c_vs['is_whiff'].sum() / c_vs['is_swing'].sum() if c_vs['is_swing'].sum() > 0 else 0
         whiff_sbp = c_sbp['is_whiff'].sum() / c_sbp['is_swing'].sum() if c_sbp['is_swing'].sum() > 0 else 0
-        m3.metric("Whiff % (実戦)", f"{whiff_vs*100:.1f}%", delta=get_delta(whiff_vs, whiff_sbp))
+        m4.metric("Whiff % (実戦)", f"{whiff_vs*100:.1f}%", delta=get_delta(whiff_vs, whiff_sbp))
 
-        st.write("### 📈 球種別 指標比較")
-        def get_summary(df_sub):
-            sum_df = df_sub.groupby('TaggedPitchType').agg({'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'}).rename(columns={'is_strike': 'スト率', 'is_swing': 'スイング率'})
-            sum_df['Whiff %'] = (sum_df['is_whiff'] / df_sub.groupby('TaggedPitchType')['is_swing'].sum()).fillna(0)
-            return sum_df[['スト率', 'スイング率', 'Whiff %']] * 100
-        s_sbp = get_summary(c_sbp); s_vs = get_summary(c_vs)
-        comp_table = s_vs.join(s_sbp, lsuffix='(実戦)', rsuffix='(練習)')
-        for col in ['スト率', 'スイング率', 'Whiff %']:
-            comp_table[f'{col}差'] = comp_table[f'{col}(実戦)'] - comp_table[f'{col}(練習)']
-        display_cols = ['スト率(練習)', 'スト率(実戦)', 'スト率差', 'スイング率(練習)', 'スイング率(実戦)', 'スイング率差', 'Whiff %(練習)', 'Whiff %(実戦)', 'Whiff %差']
-        st.dataframe(comp_table[[c for c in display_cols if c in comp_table.columns]].style.format('{:.1f}').background_gradient(cmap='RdBu', subset=[c for c in comp_table.columns if '差' in c]))
-        st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100 (スイングした際に空振りを奪った割合)")
+        st.write("### 📈 球種別 初球の傾向")
+        fcol1, fcol2 = st.columns(2)
+        for title, data, col in [("SBP(練習) 初球内訳", c_sbp[c_sbp['is_first_pitch']==1], fcol1), ("オープン戦(実戦) 初球内訳", c_vs[c_vs['is_first_pitch']==1], fcol2)]:
+            with col:
+                if not data.empty:
+                    counts = data['TaggedPitchType'].value_counts()
+                    plt.clf(); fig, ax = plt.subplots(figsize=(4, 3))
+                    ax.pie(counts, labels=counts.index, autopct='%1.0f%%', startangle=90, colors=plt.get_cmap('Set3').colors); ax.set_title(title); st.pyplot(fig)
+                else: st.write(f"{title}: データなし")
 
     # --- 各タブの描画 ---
     with tabs[0]: render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp"))
