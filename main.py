@@ -68,12 +68,17 @@ if df is not None:
     PITCH_ORDER = ["Fastball", "FB", "Slider", "SL", "Cutter", "CT", "Curveball", "CB", "Splitter", "SPL", "ChangeUp", "CH", "TwoSeamFastBall", "OneSeam"]
     tabs = st.tabs(["🔹 SBP", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching", "📊 比較"])
 
-    def render_filters(data_subset, key_suffix, show_extra_filters=True):
+    # 💥 フィルター関数の修正：引数で表示項目を制御 💥
+    def render_filters(data_subset, key_suffix, show_side=True, show_runner=True):
         raw_p_list = data_subset['Pitcher'].unique()
         p_list = sorted([str(p) for p in raw_p_list if str(p).strip().lower() not in ['nan', 'unknown', '']])
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
-        with col1: sel_pitcher = st.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{key_suffix}")
-        with col2:
+        
+        # 画面の幅を動的に調整
+        cols_count = 2 + (1 if show_side else 0) + (1 if show_runner else 0)
+        cols = st.columns(cols_count)
+        
+        with cols[0]: sel_pitcher = st.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{key_suffix}")
+        with cols[1]:
             d_list = sorted([str(d) for d in data_subset['Date'].unique()], reverse=True)
             sel_date = st.selectbox("日付を選択", ["すべて"] + [str(d) for d in d_list], key=f"d_{key_suffix}")
         
@@ -81,12 +86,16 @@ if df is not None:
         if sel_pitcher != "すべて": f = f[f['Pitcher'] == sel_pitcher]
         if sel_date != "すべて": f = f[f['Date'].astype(str) == sel_date]
 
-        if show_extra_filters:
-            with col3:
+        current_col = 2
+        if show_side:
+            with cols[current_col]:
                 if 'BatterSide' in f.columns:
                     sel_side = st.selectbox("左右打者", ["すべて", "Right", "Left"], key=f"s_{key_suffix}")
                     if sel_side != "すべて": f = f[f['BatterSide'] == sel_side]
-            with col4:
+            current_col += 1
+            
+        if show_runner:
+            with cols[current_col]:
                 sel_runner = st.radio("ランナー状況", ["すべて", "通常", "クイック"], horizontal=True, key=f"r_{key_suffix}")
                 runner_col = next((col for col in f.columns if "runn" in col.lower()), None)
                 if runner_col:
@@ -95,19 +104,14 @@ if df is not None:
                     elif sel_runner == "クイック": f = f[f['has_runner'] == 1]
         return f
 
-    # 💥 円グラフ・カウントグラフ・サマリー表をまとめた統計描画関数
+    # (render_stats_tab, render_visual_tab などの描画ロジックは前回同様)
     def render_stats_tab(f_data):
         if f_data.empty: return st.warning("データがありません。")
-        
-        # 指標カード
         m1, m2, m3, m4 = st.columns(4)
         fs = f_data[f_data['is_first_pitch']==1]
-        m1.metric("投球数", f"{len(f_data)} 球")
-        m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h")
-        m3.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
-        m4.metric("初球スト率", f"{(fs['is_strike'].mean()*100):.1f} %" if not fs.empty else "0.0 %")
+        m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h")
+        m3.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %"); m4.metric("初球スト率", f"{(fs['is_strike'].mean()*100):.1f} %" if not fs.empty else "0.0 %")
         
-        # サマリー集計
         summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
         summary.columns = ['投球数', '平均球速', 'ストライク率', 'スイング率', '空振り数']
         summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
@@ -115,19 +119,14 @@ if df is not None:
         summary['ストライク率'] *= 100; summary['スイング率'] *= 100
         summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
 
-        # 表と円グラフ
         col_table, col_pie = st.columns([2, 1])
         with col_table:
             st.write("### 📊 球種別サマリー")
             st.table(summary[['投球数', '投球割合', '平均球速', 'ストライク率', 'スイング率', 'Whiff %']].style.format('{:.1f}'))
-            st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
         with col_pie:
             st.write("### 🥧 投球割合")
-            plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4))
-            ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
-            st.pyplot(fig_p)
+            plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4)); ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors); st.pyplot(fig_p)
 
-        # カウント別グラフ
         st.write("### 🗓 カウント別 投球割合")
         f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
         count_data = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
@@ -136,8 +135,7 @@ if df is not None:
 
     def render_visual_tab(f_data):
         if f_data.empty: return st.warning("データがありません。")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h"); m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h")
+        m1, m2, m3 = st.columns(3); m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h"); m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h")
         col1, col2 = st.columns(2)
         with col1:
             st.write("🎯 **ムーブメント (変化量)**")
@@ -154,11 +152,15 @@ if df is not None:
                 ax.scatter(sub['PlateLocSide'], sub['PlateLocHeight'], label=pt, alpha=0.6)
             ax.set_xlim(-80, 80); ax.set_ylim(-20, 150); ax.set_aspect('equal'); ax.grid(True, alpha=0.3); st.pyplot(fig)
 
-    # 各タブ描画実行
-    with tabs[0]: render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp"))
-    with tabs[1]: render_stats_tab(render_filters(df[df['DataCategory']=="vs"], "vs"))
-    with tabs[2]: render_visual_tab(render_filters(df[df['DataCategory']=="PBP"], "pbp"))
-    with tabs[3]: render_visual_tab(render_filters(df[df['DataCategory']=="pitching"], "pitching"))
-    # 比較タブはこれまでのロジックを継続
+    # --- 各タブの実行 ---
+    with tabs[0]: # SBP: 左右・ランナーあり
+        render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp", show_side=True, show_runner=True))
+    with tabs[1]: # オープン戦: 左右・ランナーあり
+        render_stats_tab(render_filters(df[df['DataCategory']=="vs"], "vs", show_side=True, show_runner=True))
+    with tabs[2]: # PBP: 左右・ランナーなし 💥
+        render_visual_tab(render_filters(df[df['DataCategory']=="PBP"], "pbp", show_side=False, show_runner=False))
+    with tabs[3]: # pitching: 左右・ランナーなし 💥
+        render_visual_tab(render_filters(df[df['DataCategory']=="pitching"], "pitching", show_side=False, show_runner=False))
+    # (比較タブ略...)
 else:
     st.error("dataフォルダにCSVが見つかりません。")
