@@ -119,7 +119,7 @@ if df is not None:
         m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         m5.metric("初球スト率", f"{f_str_pct:.1f} %")
         
-        # 💥 表のデータ加工
+        # 統計データ加工
         summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
         summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
         summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
@@ -127,7 +127,6 @@ if df is not None:
         summary['ストライク率'] *= 100; summary['スイング率'] *= 100
         summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
 
-        # 表示用に単位を付与
         display_df = summary.copy()
         display_df['平均球速'] = display_df['平均球速'].apply(lambda x: f"{x:.1f} km/h")
         display_df['最速'] = display_df['最速'].apply(lambda x: f"{x:.1f} km/h")
@@ -135,30 +134,32 @@ if df is not None:
             display_df[col] = display_df[col].apply(lambda x: f"{x:.1f} %")
         display_df['投球数'] = display_df['投球数'].astype(int)
 
-        st.write("### 📊 球種別サマリー")
-        # 💥 中央揃えのためのCSS適用
-        st.markdown("""
-            <style>
-            .stTable td, .stTable th { text-align: center !important; }
-            div[data-testid="stTable"] { display: flex; justify-content: center; }
-            </style>
-            """, unsafe_allow_html=True)
+        # 💥 表と円グラフを横に並べるレイアウト
+        st.write("### 📊 球種別分析")
+        col_left, col_right = st.columns([1.8, 1]) # 左(表)を少し広く
         
-        st.table(display_df[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']])
-        st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
-
-        col_left, col_right = st.columns(2)
         with col_left:
-            st.write("### 🥧 投球割合")
+            st.markdown("""
+                <style>
+                .stTable td, .stTable th { text-align: center !important; }
+                div[data-testid="stTable"] { display: flex; justify-content: center; }
+                </style>
+                """, unsafe_allow_html=True)
+            st.table(display_df[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']])
+            st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
+
+        with col_right:
             plt.clf(); fig, ax = plt.subplots(figsize=(4, 4))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
+            ax.set_title("投球割合")
             st.pyplot(fig)
-        with col_right:
-            st.write("### 🗓 カウント別 投球割合")
-            f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
-            cnt_map = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
-            if not cnt_map.empty:
-                st.bar_chart(cnt_map.div(cnt_map.sum(axis=1).replace(0, 1), axis=0) * 100)
+
+        # カウント別グラフは独立したセクションとして下に配置
+        st.write("### 🗓 カウント別 投球割合")
+        f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
+        cnt_map = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
+        if not cnt_map.empty:
+            st.bar_chart(cnt_map.div(cnt_map.sum(axis=1).replace(0, 1), axis=0) * 100)
 
     def render_visual_tab(f_data):
         if f_data.empty: return st.warning("データがありません。")
@@ -190,6 +191,5 @@ if df is not None:
     with tabs[1]: render_stats_tab(render_filters(df[df['DataCategory']=="vs"], "vs"))
     with tabs[2]: render_visual_tab(render_filters(df[df['DataCategory']=="PBP"], "pbp", show_side=False, show_runner=False))
     with tabs[3]: render_visual_tab(render_filters(df[df['DataCategory']=="pitching"], "ptc", show_side=False, show_runner=False))
-    # 比較タブなどは略
 else:
     st.error("dataフォルダにCSVが見つかりません。")
