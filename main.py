@@ -113,13 +113,14 @@ if df is not None:
         max_spd = f_data['RelSpeed'].max() if not f_data.empty else 0.0
         fs = f_data[f_data['is_first_pitch'] == 1]
         f_str_pct = (fs['is_strike'].mean() * 100) if not fs.empty else 0.0
-        m1.metric("投球数", f"{len(f_data)} 球")
-        m2.metric("平均球速(直球)", f"{avg_fb:.1f} km/h")
-        m3.metric("最高速度", f"{max_spd:.1f} km/h")
+        
+        # メイン指標（単位ありのままでも数値だけでもお好みですが、表と合わせて単位なしにしています）
+        m1.metric("投球数", f"{len(f_data)}")
+        m2.metric("平均球速(直球)", f"{avg_fb:.1f}")
+        m3.metric("最高速度", f"{max_spd:.1f}")
         m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         m5.metric("初球スト率", f"{f_str_pct:.1f} %")
         
-        # 統計データ加工
         summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
         summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
         summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
@@ -127,14 +128,14 @@ if df is not None:
         summary['ストライク率'] *= 100; summary['スイング率'] *= 100
         summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
 
+        # 表示用フォーマット（球速単位を削除）
         display_df = summary.copy()
-        display_df['平均球速'] = display_df['平均球速'].apply(lambda x: f"{x:.1f} km/h")
-        display_df['最速'] = display_df['最速'].apply(lambda x: f"{x:.1f} km/h")
+        display_df['平均球速'] = display_df['平均球速'].apply(lambda x: f"{x:.1f}")
+        display_df['最速'] = display_df['最速'].apply(lambda x: f"{x:.1f}")
         for col in ['投球割合', 'ストライク率', 'スイング率', 'Whiff %']:
             display_df[col] = display_df[col].apply(lambda x: f"{x:.1f} %")
         display_df['投球数'] = display_df['投球数'].astype(int)
 
-        # 表と円グラフのレイアウト
         col_left, col_right = st.columns([1.8, 1])
         
         with col_left:
@@ -149,11 +150,9 @@ if df is not None:
             st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
 
         with col_right:
-            # 💥 グラフの外側にタイトルを配置
             st.write("### 🥧 投球割合")
             plt.clf(); fig, ax = plt.subplots(figsize=(4, 4))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
-            # 💥 ax.set_title("投球割合") を削除
             st.pyplot(fig)
 
         st.write("### 🗓 カウント別 投球割合")
@@ -166,8 +165,8 @@ if df is not None:
         if f_data.empty: return st.warning("データがありません。")
         m1, m2, m3, m4 = st.columns(4)
         fb_speed = f_data[f_data['TaggedPitchType'].isin(["Fastball", "FB"])]['RelSpeed'].mean()
-        m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速(直球)", f"{fb_speed or 0:.1f} km/h")
-        m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
+        m1.metric("投球数", f"{len(f_data)}"); m2.metric("平均球速(直球)", f"{fb_speed or 0:.1f}")
+        m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f}"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         c1, c2 = st.columns(2)
         with c1:
             st.write("🎯 **ムーブメント (変化量)**")
