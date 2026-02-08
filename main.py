@@ -114,10 +114,10 @@ if df is not None:
         fs = f_data[f_data['is_first_pitch'] == 1]
         f_str_pct = (fs['is_strike'].mean() * 100) if not fs.empty else 0.0
         
-        # メイン指標（単位ありのままでも数値だけでもお好みですが、表と合わせて単位なしにしています）
-        m1.metric("投球数", f"{len(f_data)}")
-        m2.metric("平均球速(直球)", f"{avg_fb:.1f}")
-        m3.metric("最高速度", f"{max_spd:.1f}")
+        # 💥 上部のメトリクス：km/h を残す
+        m1.metric("投球数", f"{len(f_data)} 球")
+        m2.metric("平均球速(直球)", f"{avg_fb:.1f} km/h")
+        m3.metric("最高速度", f"{max_spd:.1f} km/h")
         m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         m5.metric("初球スト率", f"{f_str_pct:.1f} %")
         
@@ -128,7 +128,7 @@ if df is not None:
         summary['ストライク率'] *= 100; summary['スイング率'] *= 100
         summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
 
-        # 表示用フォーマット（球速単位を削除）
+        # 💥 表内の表示用フォーマット：球速単位を消す
         display_df = summary.copy()
         display_df['平均球速'] = display_df['平均球速'].apply(lambda x: f"{x:.1f}")
         display_df['最速'] = display_df['最速'].apply(lambda x: f"{x:.1f}")
@@ -165,8 +165,9 @@ if df is not None:
         if f_data.empty: return st.warning("データがありません。")
         m1, m2, m3, m4 = st.columns(4)
         fb_speed = f_data[f_data['TaggedPitchType'].isin(["Fastball", "FB"])]['RelSpeed'].mean()
-        m1.metric("投球数", f"{len(f_data)}"); m2.metric("平均球速(直球)", f"{fb_speed or 0:.1f}")
-        m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f}"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
+        # 💥 ここも km/h を残す
+        m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速(直球)", f"{fb_speed or 0:.1f} km/h")
+        m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         c1, c2 = st.columns(2)
         with c1:
             st.write("🎯 **ムーブメント (変化量)**")
