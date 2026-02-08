@@ -1,0 +1,161 @@
+import pandas as pd
+import streamlit as st
+import os
+import matplotlib.pyplot as plt
+import glob
+
+# --- 1. ページ設定 ---
+st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
+
+# --- 2. データ読み込み ---
+@st.cache_data
+def load_all_data_from_folder(folder_path):
+    all_files = glob.glob(os.path.join(folder_path, "*.csv"))
+    if not all_files: return None
+    
+    list_df = []
+    for filename in all_files:
+        try:
+            temp_df = pd.read_csv(filename, encoding='utf-8')
+        except:
+            temp_df = pd.read_csv(filename, encoding='cp932')
+            
+        # ファイル名を小文字で取得して判定
+        fname_lower = os.path.basename(filename).lower()
+        
+        # カテゴリ判定（小文字のファイル名に対応）
+        if "sbp" in fname_lower: category = "SBP"
+        elif "vs" in fname_lower: category = "vs"
+        elif "pbp" in fname_lower: category = "PBP"
+        elif "pitching" in fname_lower: category = "pitching"
+        else: category = "その他"
+        
+        rename_dict = {
+            'Pitch Type': 'TaggedPitchType', 'Is Strike': 'PitchCall',
+            'RelSpeed (KMH)': 'RelSpeed', 'InducedVertBreak (CM)': 'InducedVertBreak',
+            'HorzBreak (CM)': 'HorzBreak', 'PlateLocSide (CM)': 'PlateLocSide',
+            'PlateLocHeight (CM)': 'PlateLocHeight'
+        }
+        temp_df = temp_df.rename(columns=rename_dict)
+        temp_df['DataCategory'] = category
+
+        if 'Pitcher First Name' in temp_df.columns:
+            temp_df['Pitcher'] = temp_df['Pitcher First Name'].fillna("Unknown").astype(str)
+        elif 'Pitcher' in temp_df.columns:
+            temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip()
+        else:
+            temp_df['Pitcher'] = "Unknown"
+
+        if 'Pitch Created At' in temp_df.columns:
+            temp_df['Date'] = pd.to_datetime(temp_df['Pitch Created At']).dt.date
+        elif 'Date' in temp_df.columns:
+            temp_df['Date'] = pd.to_datetime(temp_df['Date']).dt.date
+        else:
+            temp_df['Date'] = pd.Timestamp.now().date()
+
+        list_df.append(temp_df)
+    
+    data = pd.concat(list_df, axis=0, ignore_index=True)
+    data['Pitcher'] = data['Pitcher'].fillna("Unknown").astype(str)
+    data['DateLabel'] = data.apply(lambda row: f"{row['Date']} ({row['DataCategory']})", axis=1)
+    
+    for col in ['RelSpeed', 'InducedVertBreak', 'HorzBreak', 'PlateLocSide', 'PlateLocHeight', 'Balls', 'Strikes']:
+        if col in data.columns: data[col] = pd.to_numeric(data[col], errors='coerce')
+    
+    return data
+
+df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
+
+if df is not None:
+    PITCH_ORDER = ["Fastball", "FB", "Slider", "SL", "Cutter", "CT", "Curveball", "CB", "Splitter", "SPL", "ChangeUp", "CH", "TwoSeamFastBall", "OneSeam"]
+    
+    # タブ設定（2番目をオープン戦、4番目をpitchingに変更）
+    tabs = st.tabs(["🔹 SBP", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"])
+
+    def render_filters(data_subset, key_suffix, show_runner_filter=True):
+        raw_p_list = data_subset['Pitcher'].unique()
+        p_list = sorted([
+            str(p) for p in raw_p_list 
+            if str(p).strip().lower() not in ['0', '0.0', 'nan', 'unknown', 'none', '']
+        ])
+        
+        col1, col2, col3 = st.columns([1, 1.2, 1])
+        with col1:
+            sel_pitcher = st.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{key_suffix}")
+        with col2:
+            d_list = sorted([str(d) for d in data_subset['DateLabel'].unique()], reverse=True)
+            sel_date = st.selectbox("日付を選択", ["すべて"] + d_list, key=f"d_{key_suffix}")
+        
+        f = data_subset.copy()
+        if sel_pitcher != "すべて": f = f[f['Pitcher'] == sel_pitcher]
+        if sel_date != "すべて": f = f[f['DateLabel'] == sel_date]
+
+        if show_runner_filter:
+            with col3:
+                st.write("ランナー状況")
+                sel_runner = st.radio("", ["すべて", "通常", "クイック"], horizontal=True, key=f"r_{key_suffix}", label_visibility="collapsed")
+            
+            runner_col = next((col for col in f.columns if "runn" in col.lower()), None)
+            if runner_col:
+                f['has_runner'] = f[runner_col].apply(lambda x: 0 if pd.isna(x) or str(x).strip().lower() in ['0', '0.0', 'none', '', 'nan'] else 1)
+                if sel_runner == "通常": f = f[f['has_runner'] == 0]
+                elif sel_runner == "クイック": f = f[f['has_runner'] == 1]
+        return f
+
+    def render_stats_tab(f_data):
+        if f_data.empty: return st.warning("データがありません。")
+        f_data['is_strike'] = f_data['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
+        f_data['is_swing'] = f_data['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
+        f_data['is_whiff'] = f_data['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING'] else 0)
+        
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h")
+        m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean() * 100):.1f} %")
+        
+        summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
+        summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
+        summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
+        summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
+        summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
+        summary['ストライク率'] *= 100; summary['スイング率'] *= 100
+        
+        col_table, col_pie = st.columns([2, 1])
+        with col_table: st.table(summary[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']].style.format('{:.1f}'))
+        with col_pie:
+            st.write("球種別投球割合"); plt.clf(); fig_p, ax_p = plt.subplots(figsize=(4, 4))
+            ax_p.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
+            st.pyplot(fig_p)
+            
+        st.subheader("🗓 カウント別 投球割合")
+        f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
+        count_data = pd.crosstab(f_data['Count'], f_data['TaggedPitchType']).reindex(index=["0-0", "1-0", "2-0", "3-0", "0-1", "1-1", "2-1", "3-1", "0-2", "1-2", "2-2", "3-2"], fill_value=0)
+        st.bar_chart(count_data.div(count_data.sum(axis=1).replace(0, 1), axis=0) * 100)
+
+    def render_visual_tab(f_data):
+        if f_data.empty: return st.warning("データがありません。")
+        m1, m2, m3 = st.columns(3); m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均球速", f"{f_data['RelSpeed'].mean():.1f} km/h"); m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("🎯 **ムーブメント (-80 to 80)**"); plt.clf(); fig, ax = plt.subplots(figsize=(5, 5)); ax.axhline(0, color='black', lw=1); ax.axvline(0, color='black', lw=1)
+            for pt in [p for p in PITCH_ORDER if p in f_data['TaggedPitchType'].unique()]:
+                sub = f_data[f_data['TaggedPitchType'] == pt]; ax.scatter(sub['HorzBreak'], sub['InducedVertBreak'], label=pt, alpha=0.6)
+            ax.set_xlim(-80, 80); ax.set_ylim(-80, 80); ax.legend(); ax.grid(True, alpha=0.3); st.pyplot(fig)
+        with col2:
+            st.write("📍 **到達位置**"); plt.clf(); fig, ax = plt.subplots(figsize=(5, 5)); ax.add_patch(plt.Rectangle((-25, 45), 50, 60, fill=False, color='black', lw=2))
+            for pt in [p for p in PITCH_ORDER if p in f_data['TaggedPitchType'].unique()]:
+                sub = f_data[f_data['TaggedPitchType'] == pt]
+                if 'PlateLocSide' in sub.columns: ax.scatter(sub['PlateLocSide'], sub['PlateLocHeight'], label=pt, alpha=0.6)
+            ax.set_xlim(-80, 80); ax.set_ylim(-20, 150); ax.set_aspect('equal'); ax.grid(True, alpha=0.3); st.pyplot(fig)
+            
+        st.subheader("⚡ 投球データ一覧 (球速順)")
+        cols = [c for c in ['TaggedPitchType', 'RelSpeed', 'InducedVertBreak', 'HorzBreak', 'PitchCall'] if c in f_data.columns]
+        st.dataframe(f_data[cols].sort_values('RelSpeed', ascending=False).style.format({'RelSpeed': '{:.1f}', 'InducedVertBreak': '{:.1f}', 'HorzBreak': '{:.1f}'}), use_container_width=True)
+
+    # --- 各タブの実行 ---
+    with tabs[0]: render_stats_tab(render_filters(df[df['DataCategory']=="SBP"], "sbp", show_runner_filter=True))
+    with tabs[1]: render_stats_tab(render_filters(df[df['DataCategory']=="vs"], "vs", show_runner_filter=True))
+    with tabs[2]: render_visual_tab(render_filters(df[df['DataCategory']=="PBP"], "pbp", show_runner_filter=False))
+    with tabs[3]: render_visual_tab(render_filters(df[df['DataCategory']=="pitching"], "pitching", show_runner_filter=False))
+else:
+    st.error("dataフォルダにCSVが見つかりません。")
