@@ -141,13 +141,13 @@ if df is not None:
             st.table(display_df[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']])
             st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
         with col_right:
-            st.write("### 🥧 投球割合")
+            st.write("### 投球割合")
             plt.clf(); fig, ax = plt.subplots(figsize=(4, 4))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
             st.pyplot(fig)
 
         # 💥 カウント別分析（切り替えボタン付き）
-        st.write("### 🗓 カウント別 投球割合")
+        st.write("###  カウント別 投球割合")
         mode = st.radio("表示モード", ["全カウント", "2ストライク時のみ"], horizontal=True, key=f"cnt_mode_{key_suffix}")
         
         f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
@@ -185,7 +185,7 @@ if df is not None:
         m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         c1, c2 = st.columns(2)
         with c1:
-            st.write("🎯 **ムーブメント (変化量)**")
+            st.write(" **ムーブメント (変化量)**")
             plt.clf(); fig, ax = plt.subplots(figsize=(5, 5))
             ax.axhline(0, color='black', lw=1); ax.axvline(0, color='black', lw=1)
             for pt in f_data['TaggedPitchType'].unique():
@@ -194,7 +194,7 @@ if df is not None:
             ax.set_xlim(-80, 80); ax.set_ylim(-80, 80); ax.set_xlabel("Horizontal (cm)"); ax.set_ylabel("Vertical (cm)"); ax.legend(); ax.grid(True, alpha=0.3)
             st.pyplot(fig)
         with c2:
-            st.write("📍 **到達位置 (コントロール)**")
+            st.write(" **到達位置 (コントロール)**")
             plt.clf(); fig, ax = plt.subplots(figsize=(5, 5))
             ax.add_patch(plt.Rectangle((-25, 45), 50, 60, fill=False, color='black', lw=2))
             for pt in f_data['TaggedPitchType'].unique():
