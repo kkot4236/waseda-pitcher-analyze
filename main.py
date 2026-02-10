@@ -141,7 +141,7 @@ if df is not None:
             st.table(display_df[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']])
             st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
         with col_right:
-            st.write("### ●投球割合")
+            st.write("### ● 投球割合")
             plt.clf(); fig, ax = plt.subplots(figsize=(4, 4))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
             st.pyplot(fig)
