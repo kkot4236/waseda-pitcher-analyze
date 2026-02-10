@@ -73,7 +73,7 @@ df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 
 if df is not None:
     PITCH_ORDER = ["Fastball", "FB", "Slider", "SL", "Cutter", "CT", "Curveball", "CB", "Splitter", "SPL", "ChangeUp", "CH", "TwoSeamFastBall", "OneSeam"]
-    tabs = st.tabs(["🔹 SBP", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching", "📊 比較"])
+    tabs = st.tabs(["SBP", "オープン戦", "実戦/PBP", "pitching", "📊比較"])
 
     def render_filters(data_subset, key_suffix, show_side=True, show_runner=True):
         raw_p_list = data_subset['Pitcher'].unique()
@@ -141,12 +141,12 @@ if df is not None:
             st.table(display_df[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'スイング率', 'Whiff %']])
             st.caption("※ Whiff % = 空振り数 ÷ スイング数 × 100")
         with col_right:
-            st.write("### 🥧 投球割合")
+            st.write("### ●投球割合")
             plt.clf(); fig, ax = plt.subplots(figsize=(4, 4))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
             st.pyplot(fig)
 
-        # 💥 カウント別分析（切り替えボタン付き）
+        #  カウント別分析（切り替えボタン付き）
         st.write("### 🗓 カウント別 投球割合")
         mode = st.radio("表示モード", ["全カウント", "2ストライク時のみ"], horizontal=True, key=f"cnt_mode_{key_suffix}")
         
@@ -185,7 +185,7 @@ if df is not None:
         m3.metric("最高速度", f"{f_data['RelSpeed'].max():.1f} km/h"); m4.metric("ストライク率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         c1, c2 = st.columns(2)
         with c1:
-            st.write("🎯 **ムーブメント (変化量)**")
+            st.write(" **ムーブメント (変化量)**")
             plt.clf(); fig, ax = plt.subplots(figsize=(5, 5))
             ax.axhline(0, color='black', lw=1); ax.axvline(0, color='black', lw=1)
             for pt in f_data['TaggedPitchType'].unique():
