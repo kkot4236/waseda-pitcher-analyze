@@ -52,7 +52,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (横幅を揃える修正) ---
+# --- 3. リスク管理セクション (並び順の最終調整) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
@@ -75,14 +75,16 @@ def render_risk_management_section(f_data):
     cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
     c1, c2 = st.columns([1, 1])
-    
-    # 左右の余白設定を共通化して、棒の長さを揃える
-    common_margins = dict(l=80, r=20, t=10, b=10)
+    common_margins = dict(l=100, r=20, t=10, b=10) # ラベルが見切れないよう少し広めに設定
 
     with c1:
         side_list = []
-        target_order = [('全体合計', 'Total'), ('対左打者', 'Left'), ('対右打者', 'Right')]
-        for label, filter_val in target_order:
+        # 左側: 全体→対右→対左 の順 (category_ordersで制御するためこの順で定義)
+        # Plotlyは下から描画するため、リストの逆順を指定します
+        left_display_order = ['対左打者', '対右打者', '全体合計']
+        
+        target_map = [('全体合計', 'Total'), ('対右打者', 'Right'), ('対左打者', 'Left')]
+        for label, filter_val in target_map:
             sd = f_risk if filter_val == 'Total' else f_risk[f_risk['BatterSide'] == filter_val]
             if not sd.empty:
                 counts = sd['ResultCategory'].value_counts(normalize=True) * 100
@@ -92,7 +94,7 @@ def render_risk_management_section(f_data):
         if side_list:
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                               color_discrete_map=color_map, 
-                              category_orders={'カテゴリ': cat_order, '対象': ['全体合計', '対左打者', '対右打者']})
+                              category_orders={'カテゴリ': cat_order, '対象': left_display_order})
             fig_side.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""),
                 margin=common_margins, height=260, showlegend=False, barmode='stack'
@@ -101,9 +103,12 @@ def render_risk_management_section(f_data):
 
     with c2:
         pitch_list = []
+        # 右側: 球種の指定順序 (PITCH_ORDER)
         existing_pitches = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         other_pitches = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
         sorted_pitches = existing_pitches + other_pitches
+        # 下から描画されるため逆順にする
+        right_display_order = sorted_pitches[::-1]
 
         for pt in sorted_pitches:
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
@@ -114,21 +119,13 @@ def render_risk_management_section(f_data):
         if pitch_list:
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, 
-                            category_orders={'カテゴリ': cat_order, '球種': sorted_pitches[::-1]})
+                            category_orders={'カテゴリ': cat_order, '球種': right_display_order})
             
-            # 凡例をグラフの下側に移動させることで、横幅を左グラフと一致させる
             fig_pt.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""),
                 margin=common_margins, height=260, 
                 showlegend=True,
-                legend=dict(
-                    orientation="h",     # 水平に並べる
-                    yanchor="top",
-                    y=-0.3,              # グラフの下側に配置
-                    xanchor="center",
-                    x=0.5,
-                    title=""
-                ),
+                legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5, title=""),
                 barmode='stack'
             )
             st.plotly_chart(fig_pt, use_container_width=True)
@@ -155,7 +152,9 @@ def render_stats_tab(f_data, key_suffix):
     summary = summary.reindex(available_order + others)
 
     summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
-    summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
+    # スイング合計が0の場合のゼロ除算回避
+    swing_counts = f_data.groupby('TaggedPitchType')['is_swing'].sum()
+    summary['Whiff %'] = (summary['空振り数'] / swing_counts * 100).fillna(0)
     
     disp = summary.copy()
     disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
@@ -178,7 +177,6 @@ def render_stats_tab(f_data, key_suffix):
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             st.pyplot(fig)
 
-    # 下段: リスク管理
     render_risk_management_section(f_data)
 
     st.divider()
@@ -186,7 +184,10 @@ def render_stats_tab(f_data, key_suffix):
     mode = st.radio("表示モード", ["全カウント", "2ストライク時のみ"], horizontal=True, key=f"mode_{key_suffix}")
     f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
     plot_sub = f_data[f_data['Strikes']==2] if mode=="2ストライク時のみ" else f_data
-    lbls = ["0-2","1-2","2-2","3-2","2スト全体"] if mode=="2ストライク時のみ" else ["0-0","1-0","2-0","3-0","0-1","1-1","2-1","3-1","0-2","1-2","2-2","3-2","全体"]
+    lbls = ["0-0","1-0","2-0","3-0","0-1","1-1","2-1","3-1","0-2","1-2","2-2","3-2","全体"]
+    if mode == "2ストライク時のみ":
+        lbls = ["0-2","1-2","2-2","3-2","2スト全体"]
+        
     if not plot_sub.empty:
         c_map = pd.crosstab(plot_sub['Count'], plot_sub['TaggedPitchType'])
         bar_order = [p for p in PITCH_ORDER if p in c_map.columns] + [p for p in c_map.columns if p not in PITCH_ORDER]
@@ -213,9 +214,8 @@ if df is not None:
         if d != "すべて": sub_df = sub_df[sub_df['Date'].astype(str) == d]
         return sub_df
 
-    with tabs[0]: render_stats_tab(get_filtered_data("SBP", "sbp"), "sbp")
-    with tabs[1]: render_stats_tab(get_filtered_data("vs", "vs"), "vs")
-    with tabs[2]: render_stats_tab(get_filtered_data("PBP", "pbp"), "pbp")
-    with tabs[3]: render_stats_tab(get_filtered_data("pitching", "ptc"), "ptc")
+    for i, cat in enumerate(["SBP", "vs", "PBP", "pitching"]):
+        with tabs[i]:
+            render_stats_tab(get_filtered_data(cat, f"tab_{i}"), f"tab_{i}")
 else:
     st.error("dataフォルダにCSVが見つかりません。")
