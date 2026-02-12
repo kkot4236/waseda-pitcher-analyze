@@ -46,7 +46,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (レイアウトを上のセクションと同期) ---
+# --- 3. リスク管理グラフ ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -66,7 +66,6 @@ def render_risk_management_grid(f_data):
     color_map = {'完全アウト': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # 上の [2.3, 1] と比率を合わせる
     c1, c2 = st.columns([2.3, 1])
     
     with c1:
@@ -126,7 +125,7 @@ def render_stats_tab(f_data, key_suffix):
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
     m5.metric("初球スト", f"{(f_data[f_data['is_first_pitch']==1]['is_strike'].mean()*100):.1f} %")
 
-    # --- 小数点桁数の調整箇所 ---
+    # --- 数値の丸め処理を徹底 ---
     summary = f_data.groupby('TaggedPitchType').agg({
         'RelSpeed': ['count', 'mean', 'max'], 
         'is_strike': 'mean', 
@@ -135,24 +134,26 @@ def render_stats_tab(f_data, key_suffix):
     })
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
     
-    # ここで丸め処理を実行
-    summary['平均球速'] = summary['平均球速'].astype(float).round(1)
-    summary['最速'] = summary['最速'].astype(float).round(1)
+    # 割合の計算
+    summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
+    summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
     
-    summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100).round(1)
-    summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0).round(1)
-    
+    # 【重要】表示用のデータフレームを作成し、文字列フォーマットで小数点第一位を強制
     disp = summary.copy()
-    for c in ['投球割合', 'ストライク率', 'スイング率', 'Whiff %']: 
-        # 表表示用に % を付ける（ストライク率などは0-1なので100倍する）
-        if c in ['ストライク率', 'スイング率']:
-            disp[c] = (summary[c] * 100).round(1).apply(lambda x: f"{x:.1f} %")
-        else:
-            disp[c] = summary[c].apply(lambda x: f"{x:.1f} %")
+    
+    # 数値列のフォーマット（一括で小数点第1位に固定）
+    disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
+    disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}")
+    
+    # % を含む列のフォーマット
+    disp['投球割合'] = summary['投球割合'].apply(lambda x: f"{x:.1f} %")
+    disp['ストライク率'] = (summary['ストライク率'] * 100).apply(lambda x: f"{x:.1f} %")
+    disp['Whiff %'] = summary['Whiff %'].apply(lambda x: f"{x:.1f} %")
     
     col_l, col_r = st.columns([2.3, 1])
     with col_l:
         st.write("### 📊 球種別分析")
+        # 必要な列だけを、フォーマット済みのdispから表示
         st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
         render_risk_management_grid(f_data)
     
