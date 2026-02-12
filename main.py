@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 球種の指定順序定義
+# 球種の指定順序定義（この順に上から並べます）
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
@@ -59,7 +59,7 @@ def load_all_data_from_folder(folder_path):
     
     return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (分類と順序の修正) ---
+# --- 3. リスク管理セクション (順序と分類の最終修正) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
@@ -71,7 +71,6 @@ def render_risk_management_section(f_data):
         
         if 'home' in res: return '本塁打'
         if 'walk' in res or 'hitby' in res: return '四死球'
-        # 完全アウト：三振 or 内野フライ(Popup)
         if 'strikeout' in res or 'strikeout' in call or 'popup' in hit: return '完全アウト(内野フライ+三振)'
         if 'ground' in hit: return 'ゴロ'
         if 'fly' in hit or 'line' in hit: return '外野フライ・ライナー'
@@ -90,48 +89,63 @@ def render_risk_management_section(f_data):
     }
 
     c1, c2 = st.columns([1, 1])
-    common_margins = dict(l=120, r=20, t=10, b=10)
+    common_margins = dict(l=150, r=20, t=10, b=10) # ラベル幅を広めに確保
 
     with c1:
         side_list = []
-        # 並び順：上から 全体合計 -> 対右打者 -> 対左打者
-        # Plotlyは下から積むため、順序を ['対左打者', '対右打者', '全体合計'] に設定
-        left_display_order = ['対左打者', '対右打者', '全体合計']
+        # 希望順: [全体合計, 対右打者, 対左打者]
+        display_order = ['全体合計', '対右打者', '対左打者']
         
-        for label in ['全体合計', '対右打者', '対左打者']:
-            sd = f_risk if label == '全体合計' else f_risk[f_risk['BatterSide'] == ('Right' if label == '対右打者' else 'Left')]
+        for label in display_order:
+            if label == '全体合計': sd = f_risk
+            elif label == '対右打者': sd = f_risk[f_risk['BatterSide'] == 'Right']
+            else: sd = f_risk[f_risk['BatterSide'] == 'Left']
+            
             if not sd.empty:
-                for cat, val in (sd['ResultCategory'].value_counts(normalize=True)*100).items():
-                    side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': val})
+                counts = sd['ResultCategory'].value_counts(normalize=True) * 100
+                for cat in cat_order:
+                    if cat in counts:
+                        side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': counts[cat]})
         
         if side_list:
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
-                              color_discrete_map=color_map, category_orders={'カテゴリ': cat_order, '対象': left_display_order})
-            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), margin=common_margins, height=280, showlegend=False, barmode='stack')
+                              color_discrete_map=color_map, 
+                              category_orders={'対象': display_order, 'カテゴリ': cat_order})
+            # yaxisのautorangeをreversedにすることで、リストの先頭を一番上に固定
+            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
+                                   yaxis=dict(title="", autorange="reversed"), 
+                                   margin=common_margins, height=280, showlegend=False, barmode='stack')
             st.plotly_chart(fig_side, use_container_width=True)
 
     with c2:
         pitch_list = []
-        # 並び順：上から PITCH_ORDER 順
+        # 希望順: PITCH_ORDER の順
         existing = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         others = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
         sorted_pitches = existing + others
-        right_display_order = sorted_pitches[::-1] # 反転させて下が最後に来るように
 
         for pt in sorted_pitches:
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
             if not pd_sub.empty:
-                for c, v in (pd_sub['ResultCategory'].value_counts(normalize=True)*100).items():
-                    pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
+                counts = pd_sub['ResultCategory'].value_counts(normalize=True) * 100
+                for cat in cat_order:
+                    if cat in counts:
+                        pitch_list.append({'球種': pt, 'カテゴリ': cat, '割合(%)': counts[cat]})
         
         if pitch_list:
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
-                            color_discrete_map=color_map, category_orders={'カテゴリ': cat_order, '球種': right_display_order})
-            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), margin=common_margins, height=280, 
-                                showlegend=True, legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), barmode='stack')
+                            color_discrete_map=color_map, 
+                            category_orders={'球種': sorted_pitches, 'カテゴリ': cat_order})
+            # autorange="reversed" でリストの先頭(Fastball)を一番上に
+            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
+                                   yaxis=dict(title="", autorange="reversed"), 
+                                   margin=common_margins, height=280, 
+                                   showlegend=True, 
+                                   legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), 
+                                   barmode='stack')
             st.plotly_chart(fig_pt, use_container_width=True)
 
-# --- 4. 統計タブ描画 ---
+# --- 4. 統計タブ (以下、変更なし) ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     m1, m2, m3, m4, m5 = st.columns(5)
