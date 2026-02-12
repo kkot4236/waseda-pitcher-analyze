@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# --- 2. データ読み込み (ブラウザエラー対策済み) ---
+# --- 2. データ読み込み ---
 @st.cache_data
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
@@ -47,7 +47,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (左右の横幅をミリ単位で揃える) ---
+# --- 3. リスク管理グラフ (左右等幅・エラー回避版) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -62,23 +62,13 @@ def render_risk_management_grid(f_data):
     f_risk = f_data.copy()
     f_risk['ResultCategory'] = f_risk.apply(classify_result, axis=1)
     f_risk = f_risk.dropna(subset=['ResultCategory'])
-    if f_risk.empty: return st.info("リスク分析用のデータがありません。")
+    if f_risk.empty: return st.info("分析用のデータがありません。")
 
     color_map = {'完全アウト(三振+内野フライ)': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト(三振+内野フライ)', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # 左右のカラムを1:1で作成
     c1, c2 = st.columns([1, 1])
     
-    # 共通のレイアウト設定 (横幅を揃えるためのキモ)
-    common_layout = dict(
-        xaxis=dict(title="", range=[0, 100], showticklabels=True),
-        yaxis=dict(title="", standoff=10),
-        margin=dict(l=100, r=20, t=10, b=10), # 左余白(l)を100で固定
-        height=200,
-        barmode='stack'
-    )
-
     with c1:
         side_list = []
         for s in ['Left', 'Right']:
@@ -87,10 +77,18 @@ def render_risk_management_grid(f_data):
                 for c, v in (sd['ResultCategory'].value_counts(normalize=True)*100).items():
                     side_list.append({'対象': f'対{s}打者', 'カテゴリ': c, '割合(%)': v})
         
-        fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
-                          color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
-        fig_side.update_layout(**common_layout, showlegend=False)
-        st.plotly_chart(fig_side, use_container_width=True)
+        if side_list:
+            fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
+                              color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+            fig_side.update_layout(
+                xaxis=dict(title="割合 (%)", range=[0, 100]),
+                yaxis=dict(title="", standoff=10),
+                margin=dict(l=100, r=20, t=10, b=10),
+                height=220,
+                barmode='stack',
+                showlegend=False
+            )
+            st.plotly_chart(fig_side, use_container_width=True)
 
     with c2:
         pitch_list = []
@@ -100,21 +98,25 @@ def render_risk_management_grid(f_data):
                 for c, v in (pd_sub['ResultCategory'].value_counts(normalize=True)*100).items():
                     pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
         
-        fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
-                        color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
-        # 凡例を下に配置し、中央に寄せる
-        fig_pt.update_layout(
-            **common_layout,
-            legend=dict(orientation="h", yanchor="top", y=-0.5, xanchor="center", x=0.5),
-            legend_title=""
-        )
-        st.plotly_chart(fig_pt, use_container_width=True)
+        if pitch_list:
+            fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
+                            color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+            fig_pt.update_layout(
+                xaxis=dict(title="割合 (%)", range=[0, 100]),
+                yaxis=dict(title="", standoff=10),
+                margin=dict(l=100, r=20, t=10, b=10),
+                height=220,
+                barmode='stack',
+                legend=dict(orientation="h", yanchor="top", y=-0.5, xanchor="center", x=0.5),
+                legend_title=""
+            )
+            st.plotly_chart(fig_pt, use_container_width=True)
 
 # --- 4. 統計タブ描画コア関数 ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     
-    # メトリクス表示
+    # メトリクス
     m1, m2, m3, m4, m5 = st.columns(5)
     fb = f_data[f_data['TaggedPitchType'].isin(["Fastball", "FB"])]
     m1.metric("投球数", f"{len(f_data)} 球")
@@ -133,18 +135,18 @@ def render_stats_tab(f_data, key_suffix):
     for c in ['投球割合', 'ストライク率', 'スイング率', 'Whiff %']: 
         disp[c] = (summary[c] * (100 if c!='投球割合' else 1)).apply(lambda x: f"{x:.1f} %")
     
-    # メインレイアウト
-    col_l, col_r = st.columns([2.2, 1])
+    # --- レイアウト配置 ---
+    col_l, col_r = st.columns([2.3, 1])
     with col_l:
         st.write("### 📊 球種別分析")
         st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
-        render_risk_management_grid(f_data) # 表の下にリスク管理
+        render_risk_management_grid(f_data)
     
     with col_r:
         st.write("### 🥧 投球割合")
-        plt.clf(); fig, ax = plt.subplots(figsize=(2.2, 2.2)) # 円グラフをさらに小さく
+        plt.clf(); fig, ax = plt.subplots(figsize=(2.2, 2.2))
         ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
-               colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 6})
+               colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 7})
         fig.tight_layout(pad=0)
         st.pyplot(fig)
 
