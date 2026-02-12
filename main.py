@@ -8,13 +8,21 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 表示させたい「上からの」順番
+# 球種の指定順序
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
 ]
 
-# --- 2. データ読み込み ---
+# 球種カラーマップ
+PITCH_COLORS = {
+    "Fastball": "#1f77b4", "Slider": "#ff7f0e", "Cutter": "#2ca02c",
+    "Curveball": "#d62728", "ChangeUp": "#9467bd", "Splitter": "#8c564b",
+    "TwoSeamFastBall": "#e377c2", "OneSeam": "#7f7f7f", "Sinker": "#bcbd22",
+    "Unknown": "#17becf"
+}
+
+# --- 2. データ読み込み (略) ---
 @st.cache_data
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
@@ -28,7 +36,6 @@ def load_all_data_from_folder(folder_path):
         
         fname = os.path.basename(filename)
         fname_lower = fname.lower()
-        
         if "紅白戦" in fname: category = "紅白戦"
         elif "sbp" in fname_lower: category = "SBP"
         elif "vs" in fname_lower: category = "オープン戦"
@@ -59,34 +66,46 @@ def load_all_data_from_folder(folder_path):
     
     return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. カウント別分析 (復活) ---
-def render_count_analysis(f_data):
+# --- 3. カウント別分析 (絞り込み機能 復活版) ---
+def render_count_analysis(f_data, key_suffix):
     st.divider()
-    st.write("#### 📊 カウント別 投球割合")
+    col_head, col_opt = st.columns([3, 1])
+    with col_head:
+        st.write("#### 📊 カウント別 投球割合")
+    with col_opt:
+        # 🔴 2ストライク絞り込みのチェックボックス
+        is_two_strikes = st.checkbox("2ストライクのみ表示", key=f"2s_{key_suffix}")
+
     if 'Balls' not in f_data.columns or 'Strikes' not in f_data.columns:
         return st.info("カウントデータがありません。")
 
-    f_data['Count'] = f_data['Balls'].astype(str) + "-" + f_data['Strikes'].astype(str)
-    # カウントの表示順序
-    count_order = ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
+    target_df = f_data.copy()
+    if is_two_strikes:
+        target_df = target_df[target_df['Strikes'] == 2]
+        count_order = ["0-2", "1-2", "2-2", "3-2"]
+    else:
+        count_order = ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
+
+    target_df['Count'] = target_df['Balls'].astype(str) + "-" + target_df['Strikes'].astype(str)
     
     count_list = []
     for cnt in count_order:
-        df_cnt = f_data[f_data['Count'] == cnt]
+        df_cnt = target_df[target_df['Count'] == cnt]
         if not df_cnt.empty:
             counts = df_cnt['TaggedPitchType'].value_counts(normalize=True) * 100
             for pt, val in counts.items():
                 count_list.append({'カウント': cnt, '球種': pt, '割合(%)': val})
     
     if count_list:
-        # 下から描画されるのを防ぐため、ここでも categoryarray を使用
         fig_cnt = px.bar(pd.DataFrame(count_list), x='カウント', y='割合(%)', color='球種', 
                          category_orders={'カウント': count_order},
-                         color_discrete_sequence=px.colors.qualitative.Pastel)
+                         color_discrete_map=PITCH_COLORS)
         fig_cnt.update_layout(yaxis=dict(range=[0, 100]), margin=dict(l=20, r=20, t=20, b=20), height=350)
         st.plotly_chart(fig_cnt, use_container_width=True)
+    else:
+        st.info("条件に一致する投球がありません。")
 
-# --- 4. リスク管理セクション (並び順維持) ---
+# --- 4. リスク管理セクション (変更なし) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
@@ -107,7 +126,7 @@ def render_risk_management_section(f_data):
     f_risk = f_risk.dropna(subset=['ResultCategory'])
     
     cat_order = ['完全アウト(内野フライ+三振)', 'ゴロ', '外野フライ・ライナー', '四死球', '本塁打']
-    color_map = {
+    color_map_risk = {
         '完全アウト(内野フライ+三振)': '#6495ED', 'ゴロ': '#ADFF2F', 
         '外野フライ・ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF4B4B'
     }
@@ -128,7 +147,7 @@ def render_risk_management_section(f_data):
         
         if side_list:
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
-                              color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+                              color_discrete_map=color_map_risk, category_orders={'カテゴリ': cat_order})
             fig_side.update_layout(xaxis=dict(range=[0, 100]), yaxis=dict(categoryorder='array', categoryarray=draw_order_left), 
                                    margin=common_margins, height=280, showlegend=False, barmode='stack')
             st.plotly_chart(fig_side, use_container_width=True)
@@ -138,7 +157,6 @@ def render_risk_management_section(f_data):
         existing = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         others = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
         draw_order_right = (existing + others)[::-1]
-
         for pt in draw_order_right:
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
             if not pd_sub.empty:
@@ -147,13 +165,13 @@ def render_risk_management_section(f_data):
         
         if pitch_list:
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
-                            color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+                            color_discrete_map=color_map_risk, category_orders={'カテゴリ': cat_order})
             fig_pt.update_layout(xaxis=dict(range=[0, 100]), yaxis=dict(categoryorder='array', categoryarray=draw_order_right), 
                                    margin=common_margins, height=280, showlegend=True, 
                                    legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), barmode='stack')
             st.plotly_chart(fig_pt, use_container_width=True)
 
-# --- 5. 統計タブ/メイン ---
+# --- 5. 統計タブ描画 ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -183,14 +201,18 @@ def render_stats_tab(f_data, key_suffix):
     with col_r:
         st.write("### 🥧 投球割合")
         if not summary.empty:
+            labels = summary.index
+            pie_colors = [PITCH_COLORS.get(label, "#17becf") for label in labels]
             fig, ax = plt.subplots(figsize=(2.8, 2.8))
-            ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 8})
+            ax.pie(summary['投球数'], labels=labels, autopct='%1.1f%%', startangle=90, 
+                   counterclock=False, colors=pie_colors, textprops={'fontsize': 8})
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             st.pyplot(fig)
 
     render_risk_management_section(f_data)
-    render_count_analysis(f_data) # カウント別分析を最後に追加
+    render_count_analysis(f_data, key_suffix) # 復活
 
+# --- 6. メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
     tab_titles = ["🔹 SBP", "🔴 紅白戦", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"]
@@ -199,7 +221,9 @@ if df is not None:
     for i, cat in enumerate(categories):
         with tabs[i]:
             sub = df[df['DataCategory'] == cat]
-            if sub.empty: continue
+            if sub.empty:
+                st.info(f"{cat}のデータはありません。")
+                continue
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
             c1, c2 = st.columns(2)
             p = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{i}")
