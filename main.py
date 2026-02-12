@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 指定順序：このリストの順番通りに「上から」表示させます
+# 表示させたい「上からの」順番
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
@@ -59,12 +59,11 @@ def load_all_data_from_folder(folder_path):
     
     return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (表示順と分類を固定) ---
+# --- 3. リスク管理セクション (表示順序の徹底固定) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
     
-    # 5分類の定義
     def classify_result(row):
         res = str(row.get('PlayResult','')).lower()
         call = str(row.get('PitchCall','')).lower()
@@ -80,20 +79,19 @@ def render_risk_management_section(f_data):
     f_risk = f_data.copy()
     f_risk['ResultCategory'] = f_risk.apply(classify_result, axis=1)
     f_risk = f_risk.dropna(subset=['ResultCategory'])
-    
-    # カテゴリの固定順序と色の指定
+    if f_risk.empty: return st.info("分析用の打球データがありません。")
+
+    # 分類順序と色の指定
     cat_order = ['完全アウト(内野フライ+三振)', 'ゴロ', '外野フライ・ライナー', '四死球', '本塁打']
     color_map = {
         '完全アウト(内野フライ+三振)': '#6495ED', 'ゴロ': '#ADFF2F', 
         '外野フライ・ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF4B4B'
     }
 
-    if f_risk.empty: return st.info("分析用の打球データがありません。")
-
     c1, c2 = st.columns([1, 1])
-    common_margins = dict(l=150, r=20, t=20, b=20)
+    common_margins = dict(l=150, r=20, t=10, b=10)
 
-    # --- 左グラフ：上から 全体 -> 右 -> 左 ---
+    # --- 左グラフ：上から 全体合計 -> 対右打者 -> 対左打者 ---
     with c1:
         side_list = []
         left_order = ['全体合計', '対右打者', '対左打者']
@@ -106,19 +104,20 @@ def render_risk_management_section(f_data):
             if not sd.empty:
                 counts = sd['ResultCategory'].value_counts(normalize=True) * 100
                 for cat in cat_order:
-                    val = counts.get(cat, 0)
-                    side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': val})
+                    side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': counts.get(cat, 0)})
         
         if side_list:
-            fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
+            df_side = pd.DataFrame(side_list)
+            # category_orders で順序を明示し、yaxis の autorange を 'reversed' にすることで上が先頭になる
+            fig_side = px.bar(df_side, y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                               color_discrete_map=color_map, 
                               category_orders={'対象': left_order, 'カテゴリ': cat_order})
-            # yaxis_autorange='reversed' を使うことで、リストの最初の要素を確実に一番上にします
-            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title="", autorange="reversed"), 
+            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
+                                   yaxis=dict(title="", autorange="reversed"), 
                                    margin=common_margins, height=280, showlegend=False, barmode='stack')
             st.plotly_chart(fig_side, use_container_width=True)
 
-    # --- 右グラフ：上から PITCH_ORDER 順 ---
+    # --- 右グラフ：上から Fastball 順 ---
     with c2:
         pitch_list = []
         existing = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
@@ -130,14 +129,15 @@ def render_risk_management_section(f_data):
             if not pd_sub.empty:
                 counts = pd_sub['ResultCategory'].value_counts(normalize=True) * 100
                 for cat in cat_order:
-                    val = counts.get(cat, 0)
-                    pitch_list.append({'球種': pt, 'カテゴリ': cat, '割合(%)': val})
+                    pitch_list.append({'球種': pt, 'カテゴリ': cat, '割合(%)': counts.get(cat, 0)})
         
         if pitch_list:
-            fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
+            df_pitch = pd.DataFrame(pitch_list)
+            fig_pt = px.bar(df_pitch, y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, 
                             category_orders={'球種': right_order, 'カテゴリ': cat_order})
-            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title="", autorange="reversed"), 
+            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
+                                   yaxis=dict(title="", autorange="reversed"), 
                                    margin=common_margins, height=280, 
                                    showlegend=True, 
                                    legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), 
@@ -184,6 +184,7 @@ def render_stats_tab(f_data, key_suffix):
 # --- 5. メイン ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
+    # 紅白戦タブを2番目に配置
     tab_titles = ["🔹 SBP", "🔴 紅白戦", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"]
     tabs = st.tabs(tab_titles)
     categories = ["SBP", "紅白戦", "オープン戦", "実戦/PBP", "pitching"]
