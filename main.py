@@ -77,7 +77,7 @@ def render_count_analysis(f_data, key_suffix):
     st.divider()
     col_head, col_opt = st.columns([3, 1])
     with col_head:
-        st.write("#### 📊 カウント別 投球割合")
+        st.write("#### カウント別 投球割合")
     with col_opt:
         is_two_strikes = st.checkbox("2ストライクのみ表示", key=f"2s_{key_suffix}")
 
@@ -119,7 +119,7 @@ def render_count_analysis(f_data, key_suffix):
 # --- 4. リスク管理セクション (変更なし) ---
 def render_risk_management_section(f_data):
     st.divider()
-    st.write("#### 📊 リスク管理 (打球結果)")
+    st.write("####  リスク管理 (打球結果)")
     
     def classify_result(row):
         res = str(row.get('PlayResult','')).lower()
@@ -208,10 +208,10 @@ def render_stats_tab(f_data, key_suffix):
     
     col_l, col_r = st.columns([2.3, 1])
     with col_l:
-        st.write("### 📊 球種別分析")
+        st.write("### ● 球種別分析")
         st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
     with col_r:
-        st.write("### 🥧 投球割合")
+        st.write("### ● 投球割合")
         if not summary.empty:
             labels = summary.index
             pie_colors = [PITCH_COLORS.get(label, "#9EDAE5") for label in labels]
@@ -227,7 +227,7 @@ def render_stats_tab(f_data, key_suffix):
 # --- 6. メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
-    tab_titles = ["🔹 SBP", "🔴 紅白戦", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"]
+    tab_titles = ["● SBP", "● 紅白戦", "● オープン戦", "● PBP", "● pitching"]
     tabs = st.tabs(tab_titles)
     categories = ["SBP", "紅白戦", "オープン戦", "実戦/PBP", "pitching"]
     for i, cat in enumerate(categories):
