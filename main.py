@@ -41,7 +41,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (完全等幅・横並び) ---
+# --- 3. リスク管理グラフ (凡例を下に配置して横幅を確保) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -56,14 +56,12 @@ def render_risk_management_grid(f_data):
     f_risk = f_data.copy()
     f_risk['ResultCategory'] = f_risk.apply(classify_result, axis=1)
     f_risk = f_risk.dropna(subset=['ResultCategory'])
-    if f_risk.empty: return st.info("リスク分析用のデータがありません。")
+    if f_risk.empty: return st.info("分析用の打球データがありません。")
 
     color_map = {'完全アウト(三振+内野フライ)': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト(三振+内野フライ)', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # 等幅のカラム作成
     c1, c2 = st.columns([1, 1])
-    
     with c1:
         side_list = []
         for s in ['Left', 'Right']:
@@ -72,7 +70,7 @@ def render_risk_management_grid(f_data):
                 for c, v in (sd['ResultCategory'].value_counts(normalize=True)*100).items():
                     side_list.append({'対象': f'対{s}打者', 'カテゴリ': c, '割合(%)': v})
         fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', color_discrete_map=color_map, category_orders={'カテゴリ': cat_order}, height=200)
-        fig_side.update_layout(showlegend=False, margin=dict(l=5, r=5, t=5, b=5), xaxis_title="")
+        fig_side.update_layout(showlegend=False, margin=dict(l=0, r=20, t=10, b=10), xaxis_title="")
         st.plotly_chart(fig_side, use_container_width=True)
 
     with c2:
@@ -82,13 +80,13 @@ def render_risk_management_grid(f_data):
             for c, v in (pd_sub['ResultCategory'].value_counts(normalize=True)*100).items():
                 pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
         fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', color_discrete_map=color_map, category_orders={'カテゴリ': cat_order}, height=200)
-        fig_pt.update_layout(showlegend=True, margin=dict(l=5, r=5, t=5, b=5), legend_title="", xaxis_title="")
+        # 凡例を下側に移動させて横幅を確保
+        fig_pt.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.8, xanchor="center", x=0.5), margin=dict(l=0, r=20, t=10, b=10), legend_title="", xaxis_title="")
         st.plotly_chart(fig_pt, use_container_width=True)
 
 # --- 4. 統計タブ描画コア関数 ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("データがありません。")
-    
     m1, m2, m3, m4, m5 = st.columns(5)
     fb = f_data[f_data['TaggedPitchType'].isin(["Fastball", "FB"])]
     m1.metric("投球数", f"{len(f_data)} 球"); m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h")
@@ -99,21 +97,18 @@ def render_stats_tab(f_data, key_suffix):
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
     summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
     summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
-    
     disp = summary.copy()
-    for c in ['投球割合', 'ストライク率', 'スイング率', 'Whiff %']: 
-        disp[c] = (summary[c] * (100 if c!='投球割合' else 1)).apply(lambda x: f"{x:.1f} %")
+    for c in ['投球割合', 'ストライク率', 'スイング率', 'Whiff %']: disp[c] = (summary[c] * (100 if c!='投球割合' else 1)).apply(lambda x: f"{x:.1f} %")
     
     col_l, col_r = st.columns([2, 1])
     with col_l:
         st.write("### 📊 球種別分析")
         st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
         render_risk_management_grid(f_data)
-    
     with col_r:
         st.write("### 🥧 投球割合")
-        plt.clf(); fig, ax = plt.subplots(figsize=(2.8, 2.8)) # さらに小さく調整
-        ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 8})
+        plt.clf(); fig, ax = plt.subplots(figsize=(2.5, 2.5))
+        ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 7})
         fig.tight_layout(pad=0)
         st.pyplot(fig)
 
@@ -149,3 +144,5 @@ if df is not None:
     with tabs[1]: render_stats_tab(get_filtered_data("vs", "vs"), "vs")
     with tabs[2]: render_stats_tab(get_filtered_data("PBP", "pbp"), "pbp")
     with tabs[3]: render_stats_tab(get_filtered_data("pitching", "ptc"), "ptc")
+else:
+    st.error("dataフォルダにCSVが見つかりません。")
