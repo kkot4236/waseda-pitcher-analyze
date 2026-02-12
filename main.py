@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 球種の指定順序定義（この順に上から並べます）
+# 指定順序：リストの先頭ほど「上」に表示されるように制御します
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
@@ -46,6 +46,7 @@ def load_all_data_from_folder(folder_path):
         temp_df['DataCategory'] = category
         temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip() if 'Pitcher' in temp_df.columns else "Unknown"
         
+        # 指標計算ロジック
         if 'PitchCall' in temp_df.columns:
             temp_df['is_strike'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_swing'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
@@ -59,11 +60,12 @@ def load_all_data_from_folder(folder_path):
     
     return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (順序と分類の最終修正) ---
+# --- 3. リスク管理セクション (表示順序を完全に固定) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
     
+    # ユーザー指定の5分類
     def classify_result(row):
         res = str(row.get('PlayResult','')).lower()
         call = str(row.get('PitchCall','')).lower()
@@ -89,14 +91,15 @@ def render_risk_management_section(f_data):
     }
 
     c1, c2 = st.columns([1, 1])
-    common_margins = dict(l=150, r=20, t=10, b=10) # ラベル幅を広めに確保
+    common_margins = dict(l=150, r=20, t=10, b=10)
 
+    # --- 左グラフ：全体合計 -> 対右 -> 対左 の順に固定 ---
     with c1:
         side_list = []
-        # 希望順: [全体合計, 対右打者, 対左打者]
-        display_order = ['全体合計', '対右打者', '対左打者']
+        # 希望の表示順（上が1番目）
+        left_order = ['全体合計', '対右打者', '対左打者']
         
-        for label in display_order:
+        for label in left_order:
             if label == '全体合計': sd = f_risk
             elif label == '対右打者': sd = f_risk[f_risk['BatterSide'] == 'Right']
             else: sd = f_risk[f_risk['BatterSide'] == 'Left']
@@ -108,23 +111,22 @@ def render_risk_management_section(f_data):
                         side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': counts[cat]})
         
         if side_list:
+            # Plotlyのバグを避けるため、内部的な描画順序を[下から上]へ逆転させて渡す
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                               color_discrete_map=color_map, 
-                              category_orders={'対象': display_order, 'カテゴリ': cat_order})
-            # yaxisのautorangeをreversedにすることで、リストの先頭を一番上に固定
-            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
-                                   yaxis=dict(title="", autorange="reversed"), 
+                              category_orders={'対象': left_order[::-1], 'カテゴリ': cat_order})
+            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), 
                                    margin=common_margins, height=280, showlegend=False, barmode='stack')
             st.plotly_chart(fig_side, use_container_width=True)
 
+    # --- 右グラフ：Fastballから順に並べる ---
     with c2:
         pitch_list = []
-        # 希望順: PITCH_ORDER の順
         existing = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         others = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
-        sorted_pitches = existing + others
+        right_order = existing + others
 
-        for pt in sorted_pitches:
+        for pt in right_order:
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
             if not pd_sub.empty:
                 counts = pd_sub['ResultCategory'].value_counts(normalize=True) * 100
@@ -133,19 +135,18 @@ def render_risk_management_section(f_data):
                         pitch_list.append({'球種': pt, 'カテゴリ': cat, '割合(%)': counts[cat]})
         
         if pitch_list:
+            # y軸の指定を反転[下から上]にしてPlotlyに渡すことで、Fastballが一番上に来る
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, 
-                            category_orders={'球種': sorted_pitches, 'カテゴリ': cat_order})
-            # autorange="reversed" でリストの先頭(Fastball)を一番上に
-            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
-                                   yaxis=dict(title="", autorange="reversed"), 
+                            category_orders={'球種': right_order[::-1], 'カテゴリ': cat_order})
+            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), 
                                    margin=common_margins, height=280, 
                                    showlegend=True, 
                                    legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), 
                                    barmode='stack')
             st.plotly_chart(fig_pt, use_container_width=True)
 
-# --- 4. 統計タブ (以下、変更なし) ---
+# --- 4. 統計タブ描画 ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -156,6 +157,7 @@ def render_stats_tab(f_data, key_suffix):
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
     m5.metric("初球スト", f"{(f_data[f_data['is_first_pitch']==1]['is_strike'].mean()*100):.1f} %")
 
+    # 表の並び順もFastball優先
     summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'})
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER])
@@ -182,7 +184,7 @@ def render_stats_tab(f_data, key_suffix):
 
     render_risk_management_section(f_data)
 
-# --- 5. メイン ---
+# --- 5. メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
     tab_titles = ["🔹 SBP", "🔴 紅白戦", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"]
@@ -202,5 +204,3 @@ if df is not None:
             if p != "すべて": sub = sub[sub['Pitcher'] == p]
             if d != "すべて": sub = sub[sub['Date'].astype(str) == d]
             render_stats_tab(sub, f"tab_{i}")
-else:
-    st.error("dataフォルダにCSVが見つかりません。")
