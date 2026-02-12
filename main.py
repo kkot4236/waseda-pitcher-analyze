@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 球種の指定順序定義（リストの先頭ほど上に表示されるようにロジックで制御します）
+# 球種の指定順序定義
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
@@ -29,7 +29,6 @@ def load_all_data_from_folder(folder_path):
         fname = os.path.basename(filename)
         fname_lower = fname.lower()
         
-        # カテゴリー分類ロジック
         if "紅白戦" in fname:
             category = "紅白戦"
         elif "sbp" in fname_lower:
@@ -67,35 +66,53 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (順序修正版) ---
+# --- 3. リスク管理セクション (分類を5項目に修正) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
     
+    # ユーザー指定の5分類ロジック
     def classify_result(row):
-        res, call, hit = str(row.get('PlayResult','')).lower(), str(row.get('PitchCall','')).lower(), str(row.get('TaggedHitType','')).lower()
-        if 'strikeout' in res or 'strikeout' in call or 'popup' in hit: return '完全アウト'
-        elif 'home' in res: return '本塁打'
-        elif 'walk' in res or 'hitby' in res: return '四死球'
-        elif 'ground' in hit: return 'ゴロ'
-        elif 'fly' in hit or 'line' in hit: return '外野フライ+ライナー'
+        res = str(row.get('PlayResult','')).lower()
+        call = str(row.get('PitchCall','')).lower()
+        hit_type = str(row.get('TaggedHitType','')).lower()
+        
+        # 1. 本塁打
+        if 'home' in res: return '本塁打'
+        # 2. 四死球
+        if 'walk' in res or 'hitby' in res: return '四死球'
+        # 3. 完全アウト (三振 or 内野フライ)
+        if 'strikeout' in res or 'strikeout' in call or 'popup' in hit_type: return '完全アウト'
+        # 4. ゴロ
+        if 'ground' in hit_type: return 'ゴロ'
+        # 5. 外野フライ・ライナー
+        if 'fly' in hit_type or 'line' in hit_type: return '外野フライ・ライナー'
+        
         return None
 
     f_risk = f_data.copy()
     f_risk['ResultCategory'] = f_risk.apply(classify_result, axis=1)
     f_risk = f_risk.dropna(subset=['ResultCategory'])
-    if f_risk.empty: return st.info("分析用のデータがありません。")
+    
+    if f_risk.empty:
+        return st.info("分析用の打球データがありません。")
 
-    color_map = {'完全アウト': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
-    cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
+    # 指定の分類順序と色設定
+    cat_order = ['完全アウト', 'ゴロ', '外野フライ・ライナー', '四死球', '本塁打']
+    color_map = {
+        '完全アウト': '#6495ED',            # 青
+        'ゴロ': '#ADFF2F',                # 黄緑
+        '外野フライ・ライナー': '#FFD700',   # 黄色
+        '四死球': '#F4A460',              # オレンジ
+        '本塁打': '#FF4B4B'               # 赤
+    }
 
     c1, c2 = st.columns([1, 1])
     common_margins = dict(l=100, r=20, t=10, b=10)
 
     with c1:
         side_list = []
-        # --- 並び順修正：上から 全体 -> 右 -> 左 ---
-        # Plotlyは下から積むため、リストを [左, 右, 全体] に設定
+        # 並び順：上から 全体 -> 右 -> 左 (Plotly仕様でリストを反転)
         left_display_order = ['対左打者', '対右打者', '全体合計']
         
         for label in ['全体合計', '対右打者', '対左打者']:
@@ -112,16 +129,15 @@ def render_risk_management_section(f_data):
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                               color_discrete_map=color_map, 
                               category_orders={'カテゴリ': cat_order, '対象': left_display_order})
-            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), margin=common_margins, height=260, showlegend=False, barmode='stack')
+            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), margin=common_margins, height=280, showlegend=False, barmode='stack')
             st.plotly_chart(fig_side, use_container_width=True)
 
     with c2:
         pitch_list = []
-        # --- 並び順修正：上から PITCH_ORDER 順 ---
+        # 並び順：上から PITCH_ORDER 順
         existing_pitches = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         other_pitches = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
         sorted_pitches = existing_pitches + other_pitches
-        # 反転させて下から積むことで、上がFastballになる
         right_display_order = sorted_pitches[::-1]
 
         for pt in sorted_pitches:
@@ -134,11 +150,11 @@ def render_risk_management_section(f_data):
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, 
                             category_orders={'カテゴリ': cat_order, '球種': right_display_order})
-            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), margin=common_margins, height=260, 
-                                showlegend=True, legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5, title=""), barmode='stack')
+            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""), margin=common_margins, height=280, 
+                                showlegend=True, legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), barmode='stack')
             st.plotly_chart(fig_pt, use_container_width=True)
 
-# --- 4. 統計タブ描画 (共通) ---
+# --- 4. その他統計タブ (変更なし) ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -158,7 +174,7 @@ def render_stats_tab(f_data, key_suffix):
     summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
     
     disp = summary.copy()
-    for col in ['平均球速', '最速']: disp[col] = summary[col].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "-")
+    for col in ['平均球速', '最速']: disp[col] = summary[col].apply(lambda x: f"{x:.1f}" if pd.notnull(x) else "-")
     disp['投球割合'] = summary['投球割合'].apply(lambda x: f"{x:.1f} %")
     disp['ストライク率'] = (summary['ストライク率'] * 100).apply(lambda x: f"{x:.1f} %")
     disp['Whiff %'] = summary['Whiff %'].apply(lambda x: f"{x:.1f} %")
@@ -177,7 +193,7 @@ def render_stats_tab(f_data, key_suffix):
 
     render_risk_management_section(f_data)
 
-# --- 5. メイン ---
+# --- 5. メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
     tab_titles = ["🔹 SBP", "🔴 紅白戦", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"]
@@ -190,15 +206,12 @@ if df is not None:
             if sub_df.empty:
                 st.info(f"{cat}のデータはありません。")
                 continue
-            
             p_list = sorted([str(p) for p in sub_df['Pitcher'].unique() if p != "Unknown"])
             c1, c2 = st.columns(2)
             p = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{i}")
             d = c2.selectbox("日付を選択", ["すべて"] + sorted(sub_df['Date'].unique().astype(str), reverse=True), key=f"d_{i}")
-            
             if p != "すべて": sub_df = sub_df[sub_df['Pitcher'] == p]
             if d != "すべて": sub_df = sub_df[sub_df['Date'].astype(str) == d]
-            
             render_stats_tab(sub_df, f"tab_{i}")
 else:
     st.error("dataフォルダにCSVが見つかりません。")
