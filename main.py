@@ -46,7 +46,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (対左右2本表示 ＆ レイアウト同期) ---
+# --- 3. リスク管理グラフ (左右等幅 ＆ 左右・全体 3本表示) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -68,23 +68,28 @@ def render_risk_management_grid(f_data):
 
     c1, c2 = st.columns([1, 1])
     
-    # --- 左側：対打者別 (Right/Leftの2本に戻しました) ---
+    # --- 左側：対打者別 (右・左・全体の3本) ---
     with c1:
         side_list = []
-        for s in ['Right', 'Left']:
-            sd = f_risk[f_risk['BatterSide'] == s]
+        # 右打者、左打者、全体合計の順に集計
+        for label, filter_val in [('対右打者', 'Right'), ('対左打者', 'Left'), ('全体合計', 'Total')]:
+            if filter_val == 'Total':
+                sd = f_risk
+            else:
+                sd = f_risk[f_risk['BatterSide'] == filter_val]
+            
             if not sd.empty:
                 counts = sd['ResultCategory'].value_counts(normalize=True) * 100
                 for cat, val in counts.items():
-                    side_list.append({'対象': f'対{s}打者', 'カテゴリ': cat, '割合(%)': val})
+                    side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': val})
         
         if side_list:
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                               color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
             fig_side.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
-                yaxis=dict(title=""),
-                margin=dict(l=100, r=20, t=10, b=10), # 左余白を多めに取って右と揃える
+                yaxis=dict(title="", categoryorder='array', categoryarray=['全体合計', '対左打者', '対右打者']),
+                margin=dict(l=100, r=20, t=10, b=10),
                 height=250,
                 showlegend=False,
                 barmode='stack'
@@ -106,7 +111,7 @@ def render_risk_management_grid(f_data):
             fig_pt.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
                 yaxis=dict(title=""),
-                margin=dict(l=100, r=20, t=10, b=10), # 左マージンを左のグラフと統一
+                margin=dict(l=100, r=20, t=10, b=10),
                 height=250,
                 legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5),
                 legend_title="",
