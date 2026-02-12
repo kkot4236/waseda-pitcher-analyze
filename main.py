@@ -52,9 +52,9 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (独立したセクションとして描画) ---
+# --- 3. リスク管理セクション (横幅を揃える修正) ---
 def render_risk_management_section(f_data):
-    st.divider() # 表と円グラフの下に一線を引く
+    st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
     
     def classify_result(row):
@@ -74,9 +74,11 @@ def render_risk_management_section(f_data):
     color_map = {'完全アウト': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # 画面横幅いっぱいに等幅で棒グラフを並べる
     c1, c2 = st.columns([1, 1])
     
+    # 左右の余白設定を共通化して、棒の長さを揃える
+    common_margins = dict(l=80, r=20, t=10, b=10)
+
     with c1:
         side_list = []
         target_order = [('全体合計', 'Total'), ('対左打者', 'Left'), ('対右打者', 'Right')]
@@ -93,7 +95,7 @@ def render_risk_management_section(f_data):
                               category_orders={'カテゴリ': cat_order, '対象': ['全体合計', '対左打者', '対右打者']})
             fig_side.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""),
-                margin=dict(l=10, r=10, t=10, b=10), height=260, showlegend=False, barmode='stack'
+                margin=common_margins, height=260, showlegend=False, barmode='stack'
             )
             st.plotly_chart(fig_side, use_container_width=True)
 
@@ -113,11 +115,21 @@ def render_risk_management_section(f_data):
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, 
                             category_orders={'カテゴリ': cat_order, '球種': sorted_pitches[::-1]})
+            
+            # 凡例をグラフの下側に移動させることで、横幅を左グラフと一致させる
             fig_pt.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"), yaxis=dict(title=""),
-                margin=dict(l=10, r=10, t=10, b=10), height=260, showlegend=True,
-                legend=dict(x=1.02, y=0.5, xanchor='left', yanchor='middle'),
-                legend_title="", barmode='stack'
+                margin=common_margins, height=260, 
+                showlegend=True,
+                legend=dict(
+                    orientation="h",     # 水平に並べる
+                    yanchor="top",
+                    y=-0.3,              # グラフの下側に配置
+                    xanchor="center",
+                    x=0.5,
+                    title=""
+                ),
+                barmode='stack'
             )
             st.plotly_chart(fig_pt, use_container_width=True)
 
@@ -125,7 +137,6 @@ def render_risk_management_section(f_data):
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     
-    # 5つのメトリクス表示
     m1, m2, m3, m4, m5 = st.columns(5)
     fb = f_data[f_data['TaggedPitchType'].isin(["Fastball", "FB"])]
     m1.metric("投球数", f"{len(f_data)} 球")
@@ -134,13 +145,11 @@ def render_stats_tab(f_data, key_suffix):
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
     m5.metric("初球スト", f"{(f_data[f_data['is_first_pitch']==1]['is_strike'].mean()*100):.1f} %")
 
-    # データ集計
     summary = f_data.groupby('TaggedPitchType').agg({
         'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'mean', 'is_whiff': 'sum'
     })
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
     
-    # 球種のソート
     available_order = [p for p in PITCH_ORDER if p in summary.index]
     others = [p for p in summary.index if p not in PITCH_ORDER]
     summary = summary.reindex(available_order + others)
@@ -148,7 +157,6 @@ def render_stats_tab(f_data, key_suffix):
     summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
     summary['Whiff %'] = (summary['空振り数'] / f_data.groupby('TaggedPitchType')['is_swing'].sum() * 100).fillna(0)
     
-    # 表示用の整形（小数点第一位固定）
     disp = summary.copy()
     disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
     disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}")
@@ -156,7 +164,6 @@ def render_stats_tab(f_data, key_suffix):
     disp['ストライク率'] = (summary['ストライク率'] * 100).apply(lambda x: f"{x:.1f} %")
     disp['Whiff %'] = summary['Whiff %'].apply(lambda x: f"{x:.1f} %")
     
-    # --- 上段: 表と円グラフ ---
     col_l, col_r = st.columns([2.3, 1])
     with col_l:
         st.write("### 📊 球種別分析")
@@ -171,7 +178,7 @@ def render_stats_tab(f_data, key_suffix):
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             st.pyplot(fig)
 
-    # --- 下段: リスク管理 (一線を引いて独立させる) ---
+    # 下段: リスク管理
     render_risk_management_section(f_data)
 
     st.divider()
