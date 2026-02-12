@@ -8,13 +8,13 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 希望の並び（画面の上から表示したい順）
+# 表示させたい「上からの」順番
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
 ]
 
-# --- 2. データ読み込み（略） ---
+# --- 2. データ読み込み ---
 @st.cache_data
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
@@ -59,7 +59,34 @@ def load_all_data_from_folder(folder_path):
     
     return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (並び順の物理的な書き換え) ---
+# --- 3. カウント別分析 (復活) ---
+def render_count_analysis(f_data):
+    st.divider()
+    st.write("#### 📊 カウント別 投球割合")
+    if 'Balls' not in f_data.columns or 'Strikes' not in f_data.columns:
+        return st.info("カウントデータがありません。")
+
+    f_data['Count'] = f_data['Balls'].astype(str) + "-" + f_data['Strikes'].astype(str)
+    # カウントの表示順序
+    count_order = ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
+    
+    count_list = []
+    for cnt in count_order:
+        df_cnt = f_data[f_data['Count'] == cnt]
+        if not df_cnt.empty:
+            counts = df_cnt['TaggedPitchType'].value_counts(normalize=True) * 100
+            for pt, val in counts.items():
+                count_list.append({'カウント': cnt, '球種': pt, '割合(%)': val})
+    
+    if count_list:
+        # 下から描画されるのを防ぐため、ここでも categoryarray を使用
+        fig_cnt = px.bar(pd.DataFrame(count_list), x='カウント', y='割合(%)', color='球種', 
+                         category_orders={'カウント': count_order},
+                         color_discrete_sequence=px.colors.qualitative.Pastel)
+        fig_cnt.update_layout(yaxis=dict(range=[0, 100]), margin=dict(l=20, r=20, t=20, b=20), height=350)
+        st.plotly_chart(fig_cnt, use_container_width=True)
+
+# --- 4. リスク管理セクション (並び順維持) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
@@ -68,7 +95,6 @@ def render_risk_management_section(f_data):
         res = str(row.get('PlayResult','')).lower()
         call = str(row.get('PitchCall','')).lower()
         hit = str(row.get('TaggedHitType','')).lower()
-        
         if 'home' in res: return '本塁打'
         if 'walk' in res or 'hitby' in res: return '四死球'
         if 'strikeout' in res or 'strikeout' in call or 'popup' in hit: return '完全アウト(内野フライ+三振)'
@@ -79,76 +105,55 @@ def render_risk_management_section(f_data):
     f_risk = f_data.copy()
     f_risk['ResultCategory'] = f_risk.apply(classify_result, axis=1)
     f_risk = f_risk.dropna(subset=['ResultCategory'])
-    if f_risk.empty: return st.info("分析用の打球データがありません。")
-
+    
     cat_order = ['完全アウト(内野フライ+三振)', 'ゴロ', '外野フライ・ライナー', '四死球', '本塁打']
     color_map = {
         '完全アウト(内野フライ+三振)': '#6495ED', 'ゴロ': '#ADFF2F', 
         '外野フライ・ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF4B4B'
     }
 
+    if f_risk.empty: return st.info("分析用の打球データがありません。")
+
     c1, c2 = st.columns([1, 1])
     common_margins = dict(l=150, r=20, t=10, b=10)
 
-    # --- 左グラフ：全体合計 -> 対右 -> 対左 ---
     with c1:
         side_list = []
-        # Plotlyは「下から上」に積むため、表示したい順序の【逆】でリストを作る
         draw_order_left = ['対左打者', '対右打者', '全体合計']
-        
         for label in draw_order_left:
-            if label == '全体合計': sd = f_risk
-            elif label == '対右打者': sd = f_risk[f_risk['BatterSide'] == 'Right']
-            else: sd = f_risk[f_risk['BatterSide'] == 'Left']
-            
+            sd = f_risk if label == '全体合計' else f_risk[f_risk['BatterSide'] == ('Right' if label == '対右打者' else 'Left')]
             if not sd.empty:
                 counts = sd['ResultCategory'].value_counts(normalize=True) * 100
-                for cat in cat_order:
-                    side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': counts.get(cat, 0)})
+                for cat in cat_order: side_list.append({'対象': label, 'カテゴリ': cat, '割合(%)': counts.get(cat, 0)})
         
         if side_list:
-            df_l = pd.DataFrame(side_list)
-            # category_ordersを指定せず、データの投入順を尊重させる
-            fig_side = px.bar(df_l, y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
-                              color_discrete_map=color_map,
-                              category_orders={'カテゴリ': cat_order}) # 凡例の順序だけ固定
-            
-            # categoryarray に表示したい順序を指定して固定
-            fig_side.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
-                                   yaxis=dict(title="", categoryorder='array', categoryarray=['対左打者', '対右打者', '全体合計']), 
+            fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
+                              color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+            fig_side.update_layout(xaxis=dict(range=[0, 100]), yaxis=dict(categoryorder='array', categoryarray=draw_order_left), 
                                    margin=common_margins, height=280, showlegend=False, barmode='stack')
             st.plotly_chart(fig_side, use_container_width=True)
 
-    # --- 右グラフ：Fastballを一番上に ---
     with c2:
         pitch_list = []
         existing = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         others = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
-        # 上から順に表示したいリストの【逆順】（下から描画される用）
         draw_order_right = (existing + others)[::-1]
 
         for pt in draw_order_right:
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
             if not pd_sub.empty:
                 counts = pd_sub['ResultCategory'].value_counts(normalize=True) * 100
-                for cat in cat_order:
-                    pitch_list.append({'球種': pt, 'カテゴリ': cat, '割合(%)': counts.get(cat, 0)})
+                for cat in cat_order: pitch_list.append({'球種': pt, 'カテゴリ': cat, '割合(%)': counts.get(cat, 0)})
         
         if pitch_list:
-            df_r = pd.DataFrame(pitch_list)
-            fig_pt = px.bar(df_r, y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
-                            color_discrete_map=color_map,
-                            category_orders={'カテゴリ': cat_order})
-            
-            fig_pt.update_layout(xaxis=dict(range=[0, 100], title="割合 (%)"), 
-                                   yaxis=dict(title="", categoryorder='array', categoryarray=draw_order_right), 
-                                   margin=common_margins, height=280, 
-                                   showlegend=True, 
-                                   legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), 
-                                   barmode='stack')
+            fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
+                            color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+            fig_pt.update_layout(xaxis=dict(range=[0, 100]), yaxis=dict(categoryorder='array', categoryarray=draw_order_right), 
+                                   margin=common_margins, height=280, showlegend=True, 
+                                   legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, title=""), barmode='stack')
             st.plotly_chart(fig_pt, use_container_width=True)
 
-# --- 4. 統計タブ/メイン (略) ---
+# --- 5. 統計タブ/メイン ---
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("表示するデータがありません。")
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -184,6 +189,7 @@ def render_stats_tab(f_data, key_suffix):
             st.pyplot(fig)
 
     render_risk_management_section(f_data)
+    render_count_analysis(f_data) # カウント別分析を最後に追加
 
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
