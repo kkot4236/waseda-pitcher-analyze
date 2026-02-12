@@ -52,7 +52,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (ここを「完璧だった時」に復元) ---
+# --- 3. リスク管理グラフ (レイアウト・順序を完全復旧) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -72,13 +72,15 @@ def render_risk_management_grid(f_data):
     color_map = {'完全アウト': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # カラム比率を完璧だった時の左右等幅に近い形に戻します
+    # 左右 1:1 の比率
     c1, c2 = st.columns([1, 1])
     
     with c1:
         side_list = []
-        # ここが完璧だった時のロジック：ラベルを「対象」として縦に並べる
-        for label, filter_val in [('対右打者', 'Right'), ('対左打者', 'Left'), ('全体合計', 'Total')]:
+        # target_orderの並びとcategory_ordersの指定で、上から[右、左、全体]にする
+        target_order = [('全体合計', 'Total'), ('対左打者', 'Left'), ('対右打者', 'Right')]
+        
+        for label, filter_val in target_order:
             sd = f_risk if filter_val == 'Total' else f_risk[f_risk['BatterSide'] == filter_val]
             if not sd.empty:
                 counts = sd['ResultCategory'].value_counts(normalize=True) * 100
@@ -87,7 +89,8 @@ def render_risk_management_grid(f_data):
         
         if side_list:
             fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
-                              color_discrete_map=color_map, category_orders={'カテゴリ': cat_order, '対象': ['全体合計', '対左打者', '対右打者']})
+                              color_discrete_map=color_map, 
+                              category_orders={'カテゴリ': cat_order, '対象': ['全体合計', '対左打者', '対右打者']})
             fig_side.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
                 yaxis=dict(title=""),
@@ -98,7 +101,7 @@ def render_risk_management_grid(f_data):
 
     with c2:
         pitch_list = []
-        # 指定順序でのソート
+        # 球種の並び順をソート
         existing_pitches = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         other_pitches = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
         sorted_pitches = existing_pitches + other_pitches
@@ -110,7 +113,6 @@ def render_risk_management_grid(f_data):
                     pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
         
         if pitch_list:
-            # y軸に球種を並べる
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, 
                             category_orders={'カテゴリ': cat_order, '球種': sorted_pitches[::-1]})
@@ -144,7 +146,7 @@ def render_stats_tab(f_data, key_suffix):
     })
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング率', '空振り数']
     
-    # 球種のソート
+    # 球種のソート適用
     available_order = [p for p in PITCH_ORDER if p in summary.index]
     others = [p for p in summary.index if p not in PITCH_ORDER]
     summary = summary.reindex(available_order + others)
@@ -176,7 +178,6 @@ def render_stats_tab(f_data, key_suffix):
             st.pyplot(fig)
 
     st.divider()
-    # 以下のカウント別グラフも球種順序を維持
     st.write("### 🗓 カウント別 投球割合")
     mode = st.radio("表示モード", ["全カウント", "2ストライク時のみ"], horizontal=True, key=f"mode_{key_suffix}")
     f_data['Count'] = f_data['Balls'].fillna(0).astype(int).astype(str) + "-" + f_data['Strikes'].fillna(0).astype(int).astype(str)
