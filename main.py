@@ -46,7 +46,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (凡例を右端に配置) ---
+# --- 3. リスク管理グラフ (左右等幅 ＆ 凡例を右側に配置) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -66,8 +66,7 @@ def render_risk_management_grid(f_data):
     color_map = {'完全アウト': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # カラムを3分割 [グラフ1, グラフ2, 凡例用]
-    c1, c2, c3 = st.columns([1, 1, 0.4])
+    c1, c2 = st.columns([1, 1])
     
     with c1:
         side_list = []
@@ -85,8 +84,8 @@ def render_risk_management_grid(f_data):
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
                 yaxis=dict(title="", categoryorder='array', categoryarray=['全体合計', '対左打者', '対右打者']),
                 margin=dict(l=100, r=10, t=10, b=10),
-                height=260,
-                showlegend=False,
+                height=250,
+                showlegend=False, # 左は非表示
                 barmode='stack'
             )
             st.plotly_chart(fig_side, use_container_width=True)
@@ -102,36 +101,18 @@ def render_risk_management_grid(f_data):
         if pitch_list:
             fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+            # 右側のグラフの右側に凡例を表示
             fig_pt.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
                 yaxis=dict(title=""),
-                margin=dict(l=100, r=10, t=10, b=10),
-                height=260,
-                showlegend=False, # ここでは消して、c3で表示させる
+                margin=dict(l=100, r=100, t=10, b=10), # 右側に凡例用の余白を確保
+                height=250,
+                showlegend=True,
+                legend=dict(x=1.05, y=0.5, xanchor='left', yanchor='middle'),
+                legend_title="",
                 barmode='stack'
             )
             st.plotly_chart(fig_pt, use_container_width=True)
-
-    # --- 右端のカラムに凡例を配置 ---
-    with c3:
-        st.write("") # スペース調整
-        st.write("")
-        # ダミーグラフを使って凡例だけを抽出して表示（またはHTML/Markdownで自作）
-        # 今回は最も安定して綺麗に見える「凡例のみを表示するPlotly」を配置します
-        fig_legend = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', 
-                             color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
-        fig_legend.update_layout(
-            showlegend=True,
-            legend=dict(x=0, y=1, traceorder="normal", font=dict(size=12)),
-            margin=dict(l=0, r=0, t=0, b=0),
-            height=260
-        )
-        # グラフ本体は隠して凡例だけ見せるテクニック
-        fig_legend.update_xaxes(visible=False)
-        fig_legend.update_yaxes(visible=False)
-        fig_legend.update_traces(visible=False)
-        fig_legend.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', showlegend=True)
-        st.plotly_chart(fig_legend, use_container_width=True, config={'displayModeBar': False})
 
 # --- 4. 統計タブ描画 ---
 def render_stats_tab(f_data, key_suffix):
@@ -163,11 +144,12 @@ def render_stats_tab(f_data, key_suffix):
     with col_r:
         st.write("### 🥧 投球割合")
         if not summary.empty:
-            plt.clf()
-            fig, ax = plt.subplots(figsize=(2.2, 2.2))
+            # エラー防止：tight_layoutを避け、明示的に位置調整
+            fig, ax = plt.subplots(figsize=(2.5, 2.5))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
-                   colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 7})
-            fig.tight_layout(pad=0)
+                   colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 8})
+            # 余白エラーを避けるための設定
+            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             st.pyplot(fig)
 
     st.divider()
