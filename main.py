@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 球種の指定順序定義
+# 球種の指定順序定義（この順に上から並べます）
 PITCH_ORDER = [
     "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
@@ -52,7 +52,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理セクション (並び順の最終調整) ---
+# --- 3. リスク管理セクション (並び順を「理想」に完全固定) ---
 def render_risk_management_section(f_data):
     st.divider()
     st.write("#### 📊 リスク管理 (打球結果)")
@@ -75,17 +75,22 @@ def render_risk_management_section(f_data):
     cat_order = ['完全アウト', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
     c1, c2 = st.columns([1, 1])
-    common_margins = dict(l=100, r=20, t=10, b=10) # ラベルが見切れないよう少し広めに設定
+    common_margins = dict(l=100, r=20, t=10, b=10)
 
     with c1:
         side_list = []
-        # 左側: 全体→対右→対左 の順 (category_ordersで制御するためこの順で定義)
-        # Plotlyは下から描画するため、リストの逆順を指定します
+        # --- 修正ポイント：上から 全体合計 -> 対右打者 -> 対左打者 ---
+        # Plotlyは下から積むため、リストを [左, 右, 全体] にします
         left_display_order = ['対左打者', '対右打者', '全体合計']
         
-        target_map = [('全体合計', 'Total'), ('対右打者', 'Right'), ('対左打者', 'Left')]
-        for label, filter_val in target_map:
-            sd = f_risk if filter_val == 'Total' else f_risk[f_risk['BatterSide'] == filter_val]
+        for label in ['全体合計', '対右打者', '対左打者']:
+            if label == '全体合計':
+                sd = f_risk
+            elif label == '対右打者':
+                sd = f_risk[f_risk['BatterSide'] == 'Right']
+            else:
+                sd = f_risk[f_risk['BatterSide'] == 'Left']
+                
             if not sd.empty:
                 counts = sd['ResultCategory'].value_counts(normalize=True) * 100
                 for cat, val in counts.items():
@@ -103,12 +108,13 @@ def render_risk_management_section(f_data):
 
     with c2:
         pitch_list = []
-        # 右側: 球種の指定順序 (PITCH_ORDER)
+        # --- 修正ポイント：上から PITCH_ORDER の順 ---
+        # Plotlyは下から積むため、PITCH_ORDERを反転させます
         existing_pitches = [p for p in PITCH_ORDER if p in f_risk['TaggedPitchType'].unique()]
         other_pitches = [p for p in f_risk['TaggedPitchType'].unique() if p not in PITCH_ORDER]
         sorted_pitches = existing_pitches + other_pitches
-        # 下から描画されるため逆順にする
-        right_display_order = sorted_pitches[::-1]
+        
+        right_display_order = sorted_pitches[::-1] # 反転させて下から積む（結果、上がFastballになる）
 
         for pt in sorted_pitches:
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
@@ -152,7 +158,6 @@ def render_stats_tab(f_data, key_suffix):
     summary = summary.reindex(available_order + others)
 
     summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
-    # スイング合計が0の場合のゼロ除算回避
     swing_counts = f_data.groupby('TaggedPitchType')['is_swing'].sum()
     summary['Whiff %'] = (summary['空振り数'] / swing_counts * 100).fillna(0)
     
