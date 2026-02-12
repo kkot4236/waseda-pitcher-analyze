@@ -13,22 +13,14 @@ st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
     if not all_files: return None
-    
     list_df = []
     for filename in all_files:
         try:
             temp_df = pd.read_csv(filename, encoding='utf-8')
         except:
             temp_df = pd.read_csv(filename, encoding='cp932')
-            
         fname_lower = os.path.basename(filename).lower()
-        # カテゴリ分けを復活
-        if "sbp" in fname_lower: category = "SBP"
-        elif "vs" in fname_lower: category = "vs"
-        elif "pbp" in fname_lower: category = "PBP"
-        elif "pitching" in fname_lower: category = "pitching"
-        else: category = "その他"
-        
+        category = "SBP" if "sbp" in fname_lower else "vs" if "vs" in fname_lower else "PBP" if "pbp" in fname_lower else "pitching" if "pitching" in fname_lower else "その他"
         rename_dict = {
             'Pitch Type': 'TaggedPitchType', 'Is Strike': 'PitchCall',
             'RelSpeed (KMH)': 'RelSpeed', 'InducedVertBreak (CM)': 'InducedVertBreak',
@@ -37,32 +29,19 @@ def load_all_data_from_folder(folder_path):
         }
         temp_df = temp_df.rename(columns=rename_dict)
         temp_df['DataCategory'] = category
-
-        if 'Pitcher' in temp_df.columns:
-            temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip()
-        else:
-            temp_df['Pitcher'] = "Unknown"
-
+        temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip() if 'Pitcher' in temp_df.columns else "Unknown"
         if 'PitchCall' in temp_df.columns:
             temp_df['is_strike'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_swing'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_whiff'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING'] else 0)
-
         if 'Balls' in temp_df.columns and 'Strikes' in temp_df.columns:
             temp_df['is_first_pitch'] = ((temp_df['Balls'] == 0) & (temp_df['Strikes'] == 0)).astype(int)
-
-        if 'Date' in temp_df.columns:
-            temp_df['Date'] = pd.to_datetime(temp_df['Date']).dt.date
-        else:
-            temp_df['Date'] = pd.Timestamp.now().date()
-
+        temp_df['Date'] = pd.to_datetime(temp_df['Date']).dt.date if 'Date' in temp_df.columns else pd.Timestamp.now().date()
         list_df.append(temp_df)
-    
-    if not list_df: return None
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (左右 + 球種別の横並び) ---
+# --- 3. リスク管理グラフ (完全等幅・横並び) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -82,28 +61,28 @@ def render_risk_management_grid(f_data):
     color_map = {'完全アウト(三振+内野フライ)': '#6495ED', 'ゴロ': '#ADFF2F', '外野フライ+ライナー': '#FFD700', '四死球': '#F4A460', '本塁打': '#FF0000'}
     cat_order = ['完全アウト(三振+内野フライ)', 'ゴロ', '外野フライ+ライナー', '四死球', '本塁打']
 
-    # 集計処理
-    side_list = []
-    for s in ['Left', 'Right']:
-        sd = f_risk[f_risk['BatterSide'] == s]
-        if not sd.empty:
-            for c, v in (sd['ResultCategory'].value_counts(normalize=True)*100).items():
-                side_list.append({'対象': f'対{s}打者', 'カテゴリ': c, '割合(%)': v})
+    # 等幅のカラム作成
+    c1, c2 = st.columns([1, 1])
     
-    pitch_list = []
-    for pt in f_risk['TaggedPitchType'].unique():
-        pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
-        for c, v in (pd_sub['ResultCategory'].value_counts(normalize=True)*100).items():
-            pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
-
-    c1, c2 = st.columns(2)
     with c1:
-        fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', color_discrete_map=color_map, category_orders={'カテゴリ': cat_order}, height=220)
-        fig_side.update_layout(showlegend=False, margin=dict(l=0, r=0, t=10, b=10))
+        side_list = []
+        for s in ['Left', 'Right']:
+            sd = f_risk[f_risk['BatterSide'] == s]
+            if not sd.empty:
+                for c, v in (sd['ResultCategory'].value_counts(normalize=True)*100).items():
+                    side_list.append({'対象': f'対{s}打者', 'カテゴリ': c, '割合(%)': v})
+        fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', color_discrete_map=color_map, category_orders={'カテゴリ': cat_order}, height=200)
+        fig_side.update_layout(showlegend=False, margin=dict(l=5, r=5, t=5, b=5), xaxis_title="")
         st.plotly_chart(fig_side, use_container_width=True)
+
     with c2:
-        fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', color_discrete_map=color_map, category_orders={'カテゴリ': cat_order}, height=220)
-        fig_pt.update_layout(showlegend=True, margin=dict(l=0, r=0, t=10, b=10), legend_title="")
+        pitch_list = []
+        for pt in f_risk['TaggedPitchType'].unique():
+            pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
+            for c, v in (pd_sub['ResultCategory'].value_counts(normalize=True)*100).items():
+                pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
+        fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', color_discrete_map=color_map, category_orders={'カテゴリ': cat_order}, height=200)
+        fig_pt.update_layout(showlegend=True, margin=dict(l=5, r=5, t=5, b=5), legend_title="", xaxis_title="")
         st.plotly_chart(fig_pt, use_container_width=True)
 
 # --- 4. 統計タブ描画コア関数 ---
@@ -125,18 +104,17 @@ def render_stats_tab(f_data, key_suffix):
     for c in ['投球割合', 'ストライク率', 'スイング率', 'Whiff %']: 
         disp[c] = (summary[c] * (100 if c!='投球割合' else 1)).apply(lambda x: f"{x:.1f} %")
     
-    # --- レイアウト配置 ---
     col_l, col_r = st.columns([2, 1])
     with col_l:
         st.write("### 📊 球種別分析")
         st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
-        render_risk_management_grid(f_data) # 表の直下に配置
+        render_risk_management_grid(f_data)
     
     with col_r:
         st.write("### 🥧 投球割合")
-        plt.clf(); fig, ax = plt.subplots(figsize=(3.5, 3.5))
-        ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors)
-        fig.tight_layout()
+        plt.clf(); fig, ax = plt.subplots(figsize=(2.8, 2.8)) # さらに小さく調整
+        ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=plt.get_cmap('Pastel1').colors, textprops={'fontsize': 8})
+        fig.tight_layout(pad=0)
         st.pyplot(fig)
 
     st.divider()
@@ -152,11 +130,10 @@ def render_stats_tab(f_data, key_suffix):
         final = pd.concat([c_map, tot]).reindex(index=lbls, fill_value=0)
         st.bar_chart(final.div(final.sum(axis=1).replace(0,1), axis=0)*100)
 
-# --- 5. メインロジック (タブの復活) ---
+# --- 5. メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
 if df is not None:
     tabs = st.tabs(["🔹 SBP", "🔹 オープン戦", "⚾ 実戦/PBP", "🔥 pitching"])
-    
     def get_filtered_data(category_name, k_suffix):
         sub_df = df[df['DataCategory'] == category_name]
         if sub_df.empty: return sub_df
@@ -172,5 +149,3 @@ if df is not None:
     with tabs[1]: render_stats_tab(get_filtered_data("vs", "vs"), "vs")
     with tabs[2]: render_stats_tab(get_filtered_data("PBP", "pbp"), "pbp")
     with tabs[3]: render_stats_tab(get_filtered_data("pitching", "ptc"), "ptc")
-else:
-    st.error("dataフォルダにCSVが見つかりません。")
