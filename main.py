@@ -46,7 +46,7 @@ def load_all_data_from_folder(folder_path):
     data = pd.concat(list_df, axis=0, ignore_index=True)
     return data.convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. リスク管理グラフ (左側を全体合計に戻す) ---
+# --- 3. リスク管理グラフ (対左右2本表示 ＆ レイアウト同期) ---
 def render_risk_management_grid(f_data):
     st.write("#### 📊 リスク管理 (打球結果)")
     def classify_result(row):
@@ -68,29 +68,31 @@ def render_risk_management_grid(f_data):
 
     c1, c2 = st.columns([1, 1])
     
+    # --- 左側：対打者別 (Right/Leftの2本に戻しました) ---
     with c1:
-        # --- 合計(Total)のみを集計 ---
-        total_list = []
-        counts = f_risk['ResultCategory'].value_counts(normalize=True) * 100
-        for cat, val in counts.items():
-            total_list.append({'対象': '全体合計', 'カテゴリ': cat, '割合(%)': val})
+        side_list = []
+        for s in ['Right', 'Left']:
+            sd = f_risk[f_risk['BatterSide'] == s]
+            if not sd.empty:
+                counts = sd['ResultCategory'].value_counts(normalize=True) * 100
+                for cat, val in counts.items():
+                    side_list.append({'対象': f'対{s}打者', 'カテゴリ': cat, '割合(%)': val})
         
-        if total_list:
-            df_total = pd.DataFrame(total_list)
-            fig_total = px.bar(df_total, y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
-                               color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
-            fig_total.update_layout(
+        if side_list:
+            fig_side = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
+                              color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
+            fig_side.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
                 yaxis=dict(title=""),
-                margin=dict(l=80, r=10, t=10, b=10),
-                height=180, # 1本なので少し低めに設定
+                margin=dict(l=100, r=20, t=10, b=10), # 左余白を多めに取って右と揃える
+                height=250,
                 showlegend=False,
                 barmode='stack'
             )
-            st.plotly_chart(fig_total, use_container_width=True)
+            st.plotly_chart(fig_side, use_container_width=True)
 
+    # --- 右側：球種別 ---
     with c2:
-        # --- 球種別を集計 ---
         pitch_list = []
         for pt in f_risk['TaggedPitchType'].unique():
             pd_sub = f_risk[f_risk['TaggedPitchType'] == pt]
@@ -99,15 +101,14 @@ def render_risk_management_grid(f_data):
                     pitch_list.append({'球種': pt, 'カテゴリ': c, '割合(%)': v})
         
         if pitch_list:
-            df_pitch = pd.DataFrame(pitch_list)
-            fig_pt = px.bar(df_pitch, y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
+            fig_pt = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                             color_discrete_map=color_map, category_orders={'カテゴリ': cat_order})
             fig_pt.update_layout(
                 xaxis=dict(range=[0, 100], title="割合 (%)"),
                 yaxis=dict(title=""),
-                margin=dict(l=80, r=10, t=10, b=10),
-                height=220,
-                legend=dict(orientation="h", yanchor="top", y=-0.5, xanchor="center", x=0.5),
+                margin=dict(l=100, r=20, t=10, b=10), # 左マージンを左のグラフと統一
+                height=250,
+                legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5),
                 legend_title="",
                 barmode='stack'
             )
