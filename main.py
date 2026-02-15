@@ -8,7 +8,6 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 基本の球種順序
 PITCH_ORDER_BASE = ["Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"]
 
 PITCH_COLORS = {
@@ -45,7 +44,7 @@ def load_all_data_from_folder(folder_path):
         else:
             temp_df['Pitcher'] = temp_df.get('Pitcher', "Unknown")
 
-        # 球種名のクレンジング
+        # 球種クレンジング
         if 'TaggedPitchType' in temp_df.columns:
             temp_df['TaggedPitchType'] = temp_df['TaggedPitchType'].replace(PITCH_MAP).fillna("Unknown").astype(str)
         else:
@@ -80,7 +79,6 @@ def load_all_data_from_folder(folder_path):
 
 # --- 3. グラフ関数 ---
 def get_safe_order(df):
-    """データ内に存在する球種だけで順序リストを作成する"""
     present = df['TaggedPitchType'].unique()
     return [p for p in PITCH_ORDER_BASE if p in present] + [p for p in present if p not in PITCH_ORDER_BASE]
 
@@ -97,7 +95,7 @@ def render_break_chart(f_data):
     fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.7)
     fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.7)
     fig.update_layout(width=700, height=700, xaxis=dict(range=[-80, 80], scaleanchor="y", scaleratio=1),
-                      yaxis=dict(range=[-80, 80]), plot_bgcolor='white', showlegend=True)
+                      yaxis=dict(range=[-80, 80]), plot_bgcolor='white')
     
     c1, c2, c3 = st.columns([1, 4, 1])
     with c2: st.plotly_chart(fig, use_container_width=False)
@@ -105,11 +103,10 @@ def render_break_chart(f_data):
 def render_count_analysis(f_data, key_suffix):
     st.divider()
     st.write("#### ● カウント別 投球割合")
-    if 'Balls' not in f_data.columns or 'Strikes' not in f_data.columns: return
+    if 'Balls' not in f_data.columns: return
     target_df = f_data.copy()
     target_df['Count'] = target_df['Balls'].astype(str) + "-" + target_df['Strikes'].astype(str)
     count_order = ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
-    
     count_list = []
     for cnt in count_order:
         df_cnt = target_df[target_df['Count'] == cnt]
@@ -117,24 +114,21 @@ def render_count_analysis(f_data, key_suffix):
             counts = df_cnt['TaggedPitchType'].value_counts(normalize=True) * 100
             for pt, val in counts.items(): count_list.append({'項目': cnt, '球種': pt, '割合(%)': val})
     if count_list:
-        fig = px.bar(pd.DataFrame(count_list), x='項目', y='割合(%)', color='球種', 
-                     color_discrete_map=PITCH_COLORS, category_orders={'球種': get_safe_order(target_df)})
+        fig = px.bar(pd.DataFrame(count_list), x='項目', y='割合(%)', color='球種', color_discrete_map=PITCH_COLORS)
         st.plotly_chart(fig, use_container_width=True)
 
 def render_risk_management(f_data):
     st.divider()
     st.write("#### ● リスク管理 (打球結果)")
     def classify(row):
-        res = str(row.get('PlayResult','')).lower()
-        hit = str(row.get('TaggedHitType','')).lower()
+        res, hit = str(row.get('PlayResult','')).lower(), str(row.get('TaggedHitType','')).lower()
         if 'home' in res: return '本塁打'
         if 'ground' in hit: return 'ゴロ'
         if 'fly' in hit or 'line' in hit: return '外野フライ'
         return 'その他'
     f_risk = f_data.copy()
     f_risk['Result'] = f_risk.apply(classify, axis=1)
-    fig = px.bar(f_risk, x='TaggedPitchType', color='Result', barmode='stack',
-                 category_orders={'TaggedPitchType': get_safe_order(f_risk)})
+    fig = px.bar(f_risk, x='TaggedPitchType', color='Result', barmode='stack')
     st.plotly_chart(fig, use_container_width=True)
 
 # --- 4. タブ描画メイン ---
@@ -147,8 +141,8 @@ def render_stats_tab(f_data, mode="full", key_suffix=""):
     m_cols[1].metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f}" if not fb.empty else "-")
     m_cols[2].metric("最速", f"{f_data['RelSpeed'].max():.1f}")
     if mode == "full":
-        m_cols[3].metric("スト率", f"{(f_data.get('is_strike', pd.Series([0])).mean()*100):.1f} %")
-        m_cols[4].metric("初球スト", f"{(f_data[f_data.get('is_first_pitch',0)==1].get('is_strike', pd.Series([0])).mean()*100):.1f} %")
+        m_cols[3].metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
+        m_cols[4].metric("初球スト", f"{(f_data[f_data.get('is_first_pitch',0)==1]['is_strike'].mean()*100):.1f} %")
 
     agg_dict = {'RelSpeed': ['count', 'mean', 'max']}
     if mode == "full":
@@ -158,23 +152,25 @@ def render_stats_tab(f_data, mode="full", key_suffix=""):
     summary.columns = [c[0] + "_" + c[1] for c in summary.columns]
     summary['割合'] = (summary['RelSpeed_count'] / summary['RelSpeed_count'].sum() * 100)
     
+    # 【修正箇所】平均球速と最速を別の列に展開
     disp = pd.DataFrame(index=summary.index)
     disp['投球数'] = summary['RelSpeed_count']
     disp['割合'] = summary['割合'].apply(lambda x: f"{x:.1f}%")
-    disp['平均/最速'] = summary.apply(lambda r: f"{r['RelSpeed_mean']:.1f} / {r['RelSpeed_max']:.1f}", axis=1)
+    disp['平均球速'] = summary['RelSpeed_mean'].apply(lambda x: f"{x:.1f}")
+    disp['最速'] = summary['RelSpeed_max'].apply(lambda x: f"{x:.1f}")
+    
     if mode == "full":
         disp['ストライク率'] = (summary['is_strike_mean'] * 100).apply(lambda x: f"{x:.1f}%")
-        disp['Whiff%'] = (summary['is_whiff_sum'] / summary['is_swing_sum'].replace(0, 1) * 100).apply(lambda x: f"{x:.1f}%")
+        disp['Whiff%'] = (summary['is_whiff_sum'] / summary['is_swing_sum'].replace(0,1) * 100).apply(lambda x: f"{x:.1f}%")
 
-    col_l, col_r = st.columns([2.3, 1])
+    col_l, col_r = st.columns([2.6, 1]) # 表の幅を少し調整
     with col_l:
         st.write("### ● 球種別分析")
         st.table(disp)
     with col_r:
         st.write("### ● 投球割合")
         fig, ax = plt.subplots(figsize=(2.8, 2.8))
-        ax.pie(summary['RelSpeed_count'], labels=summary.index, autopct='%1.1f%%', 
-               colors=[PITCH_COLORS.get(s, "#9EDAE5") for s in summary.index])
+        ax.pie(summary['RelSpeed_count'], labels=summary.index, autopct='%1.1f%%', colors=[PITCH_COLORS.get(s, "#9EDAE5") for s in summary.index])
         st.pyplot(fig)
 
     if mode == "pitching":
@@ -193,11 +189,9 @@ if df is not None:
         with tabs[i]:
             sub = df[df['DataCategory'] == cat]
             if sub.empty: continue
-            
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p not in ["nan", "Unknown"]])
             p = st.selectbox("投手", ["すべて"] + p_list, key=f"p_{i}")
             if p != "すべて": sub = sub[sub['Pitcher'] == p]
-            
             render_stats_tab(sub, mode=("pitching" if cat=="pitching" else "full"), key_suffix=str(i))
 else:
     st.error("CSVが見つかりません。")
