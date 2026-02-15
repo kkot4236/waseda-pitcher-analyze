@@ -57,7 +57,7 @@ def load_all_data_from_folder(folder_path):
         }
         temp_df = temp_df.rename(columns=rename_dict)
         
-        # --- 投手名の処理 (苗字のみを取得) ---
+        # --- 投手名の処理 ---
         if 'Pitcher First Name' in temp_df.columns:
             temp_df['Pitcher'] = temp_df['Pitcher First Name'].astype(str).str.strip()
         elif 'Pitcher' in temp_df.columns:
@@ -65,7 +65,7 @@ def load_all_data_from_folder(folder_path):
         else:
             temp_df['Pitcher'] = "Unknown"
 
-        # --- 球種名の変換 (FB -> Fastball) ---
+        # --- 球種名の変換 ---
         if 'TaggedPitchType' in temp_df.columns:
             temp_df['TaggedPitchType'] = temp_df['TaggedPitchType'].replace(PITCH_MAP)
 
@@ -90,7 +90,8 @@ def load_all_data_from_folder(folder_path):
         list_df.append(temp_df)
     
     if not list_df: return None
-    return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
+    # pd.NAによるエラーを避けるため convert_dtypes は使用せず結合
+    return pd.concat(list_df, axis=0, ignore_index=True)
 
 # --- 3. 変化量グラフ (Break Chart) ---
 def render_break_chart(f_data):
@@ -100,9 +101,19 @@ def render_break_chart(f_data):
     if 'InducedVertBreak' not in f_data.columns or 'HorzBreak' not in f_data.columns:
         return st.info("変化量データがありません。")
 
+    # 【修正ポイント】グラフ描画の前に、球種や数値が欠損している行を除外する
+    plot_df = f_data.dropna(subset=['TaggedPitchType', 'InducedVertBreak', 'HorzBreak']).copy()
+    
+    # さらに TaggedPitchType が "<NA>" や空文字のものを除外
+    plot_df = plot_df[plot_df['TaggedPitchType'].astype(str).str.strip() != ""]
+    plot_df = plot_df[plot_df['TaggedPitchType'].astype(str) != "<NA>"]
+
+    if plot_df.empty:
+        return st.warning("有効な変化量データがありません。")
+
     # 散布図の作成
     fig = px.scatter(
-        f_data, 
+        plot_df, 
         x='HorzBreak', 
         y='InducedVertBreak', 
         color='TaggedPitchType',
@@ -112,11 +123,9 @@ def render_break_chart(f_data):
         hover_data={'RelSpeed': ':.1f', 'Pitcher': True}
     )
 
-    # 中心線の追加
     fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.7)
     fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.7)
     
-    # レイアウト設定 (正方形に近い形で見やすく)
     fig.update_layout(
         height=600,
         xaxis=dict(range=[-60, 60], zeroline=False),
@@ -133,15 +142,15 @@ def render_break_chart(f_data):
 def render_stats_tab(f_data):
     if f_data.empty: return st.warning("表示するデータがありません。")
     
-    # 上部の指標カード (シンプルに3つ)
     m1, m2, m3 = st.columns(3)
     fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
     m1.metric("投球数", f"{len(f_data)} 球")
     m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty else "-")
     m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
 
-    # 球種別分析テーブル (Whiff%とストライク率を消去)
-    summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max']})
+    # 統計用データから欠損を除外
+    clean_summary_df = f_data.dropna(subset=['TaggedPitchType'])
+    summary = clean_summary_df.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max']})
     summary.columns = ['投球数', '平均球速', '最速']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER])
     summary['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100)
@@ -156,20 +165,22 @@ def render_stats_tab(f_data):
         st.table(disp[['投球数', '投球割合', '平均球速', '最速']])
     with col_r:
         st.write("### ● 投球割合")
-        if not summary.empty:
+        if not summary['投球数'].dropna().empty:
             labels = summary.index
             pie_colors = [PITCH_COLORS.get(label, "#9EDAE5") for label in labels]
             fig, ax = plt.subplots(figsize=(2.8, 2.8))
-            ax.pie(summary['投球数'], labels=labels, autopct='%1.1f%%', startangle=90, 
+            ax.pie(summary['投球数'].fillna(0), labels=labels, autopct='%1.1f%%', startangle=90, 
                    counterclock=False, colors=pie_colors, textprops={'fontsize': 8})
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
             st.pyplot(fig)
 
-    # 変化量グラフの表示
     render_break_chart(f_data)
 
 # --- 5. メインロジック ---
-df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
+# フォルダパスを適切に取得
+current_dir = os.path.dirname(__file__)
+data_path = os.path.join(current_dir, "data")
+df = load_all_data_from_folder(data_path)
 
 if df is not None:
     tab_titles = ["● SBP", "● 紅白戦", "● オープン戦", "● PBP", "● pitching"]
@@ -182,7 +193,7 @@ if df is not None:
                 st.info(f"{cat}のデータはありません。")
                 continue
             
-            p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "nan"])
+            p_list = sorted([str(p) for p in sub['Pitcher'].unique() if str(p) != "nan" and str(p) != "<NA>"])
             c1, c2 = st.columns(2)
             p = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{i}")
             d = c2.selectbox("日付を選択", ["すべて"] + sorted(sub['Date'].unique().astype(str), reverse=True), key=f"d_{i}")
@@ -190,7 +201,6 @@ if df is not None:
             if p != "すべて": sub = sub[sub['Pitcher'] == p]
             if d != "すべて": sub = sub[sub['Date'].astype(str) == d]
             
-            # 統計と変化量グラフを描画
             render_stats_tab(sub)
 else:
     st.error("dataフォルダ内にCSVファイルが見つかりません。")
