@@ -8,7 +8,11 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-PITCH_ORDER_BASE = ["Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"]
+# 固定したい球種の順序
+PITCH_ORDER_BASE = [
+    "Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", 
+    "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
+]
 
 PITCH_COLORS = {
     "Fastball": "#AEC7E8", "Slider": "#FFBB78", "Cutter": "#98DF8A",
@@ -38,13 +42,11 @@ def load_all_data_from_folder(folder_path):
         }
         temp_df = temp_df.rename(columns=rename_dict)
         
-        # 投手名処理
         if 'Pitcher First Name' in temp_df.columns:
             temp_df['Pitcher'] = temp_df['Pitcher First Name'].fillna("Unknown").astype(str).str.strip()
         else:
             temp_df['Pitcher'] = temp_df.get('Pitcher', "Unknown")
 
-        # 球種クレンジング
         if 'TaggedPitchType' in temp_df.columns:
             temp_df['TaggedPitchType'] = temp_df['TaggedPitchType'].replace(PITCH_MAP).fillna("Unknown").astype(str)
         else:
@@ -59,7 +61,6 @@ def load_all_data_from_folder(folder_path):
         else: category = "その他"
         temp_df['DataCategory'] = category
         
-        # 指標フラグ
         if 'PitchCall' in temp_df.columns:
             temp_df['is_strike'] = temp_df['PitchCall'].astype(str).str.upper().apply(lambda x: 1 if x in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_swing'] = temp_df['PitchCall'].astype(str).str.upper().apply(lambda x: 1 if x in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
@@ -79,8 +80,13 @@ def load_all_data_from_folder(folder_path):
 
 # --- 3. グラフ関数 ---
 def get_safe_order(df):
-    present = df['TaggedPitchType'].unique()
-    return [p for p in PITCH_ORDER_BASE if p in present] + [p for p in present if p not in PITCH_ORDER_BASE]
+    """データに含まれる球種をPITCH_ORDER_BASEの順序を守って返す"""
+    present = df['TaggedPitchType'].unique().tolist()
+    # BASEにあるものをその順序で抽出
+    ordered = [p for p in PITCH_ORDER_BASE if p in present]
+    # BASEにないものを追加
+    others = [p for p in present if p not in PITCH_ORDER_BASE]
+    return ordered + others
 
 def render_break_chart(f_data):
     st.divider()
@@ -88,17 +94,19 @@ def render_break_chart(f_data):
     plot_df = f_data.dropna(subset=['InducedVertBreak', 'HorzBreak']).copy()
     if plot_df.empty: return st.info("変化量データがありません。")
 
+    safe_order = get_safe_order(plot_df)
+    
     fig = px.scatter(plot_df, x='HorzBreak', y='InducedVertBreak', color='TaggedPitchType',
                      color_discrete_map=PITCH_COLORS, 
-                     category_orders={'TaggedPitchType': get_safe_order(plot_df)},
+                     category_orders={'TaggedPitchType': safe_order},
                      labels={'HorzBreak': '横の変化 (cm)', 'InducedVertBreak': '縦の変化 (cm)'})
     fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.7)
     fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.7)
     fig.update_layout(width=700, height=700, xaxis=dict(range=[-80, 80], scaleanchor="y", scaleratio=1),
                       yaxis=dict(range=[-80, 80]), plot_bgcolor='white')
     
-    c1, c2, c3 = st.columns([1, 4, 1])
-    with c2: st.plotly_chart(fig, use_container_width=False)
+    c1, col2, c3 = st.columns([1, 4, 1])
+    with col2: st.plotly_chart(fig, use_container_width=False)
 
 def render_count_analysis(f_data, key_suffix):
     st.divider()
@@ -114,7 +122,9 @@ def render_count_analysis(f_data, key_suffix):
             counts = df_cnt['TaggedPitchType'].value_counts(normalize=True) * 100
             for pt, val in counts.items(): count_list.append({'項目': cnt, '球種': pt, '割合(%)': val})
     if count_list:
-        fig = px.bar(pd.DataFrame(count_list), x='項目', y='割合(%)', color='球種', color_discrete_map=PITCH_COLORS)
+        fig = px.bar(pd.DataFrame(count_list), x='項目', y='割合(%)', color='球種', 
+                     color_discrete_map=PITCH_COLORS,
+                     category_orders={'球種': get_safe_order(target_df)})
         st.plotly_chart(fig, use_container_width=True)
 
 def render_risk_management(f_data):
@@ -128,7 +138,8 @@ def render_risk_management(f_data):
         return 'その他'
     f_risk = f_data.copy()
     f_risk['Result'] = f_risk.apply(classify, axis=1)
-    fig = px.bar(f_risk, x='TaggedPitchType', color='Result', barmode='stack')
+    fig = px.bar(f_risk, x='TaggedPitchType', color='Result', barmode='stack',
+                 category_orders={'TaggedPitchType': get_safe_order(f_risk)})
     st.plotly_chart(fig, use_container_width=True)
 
 # --- 4. タブ描画メイン ---
@@ -136,10 +147,11 @@ def render_stats_tab(f_data, mode="full", key_suffix=""):
     if f_data.empty: return st.warning("データなし")
     
     m_cols = st.columns(5 if mode=="full" else 3)
-    fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
+    # Fastballの平均球速表示用
+    fb_data = f_data[f_data['TaggedPitchType'] == "Fastball"]
     m_cols[0].metric("投球数", f"{len(f_data)} 球")
-    m_cols[1].metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty else "-")
-    m_cols[2].metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
+    m_cols[1].metric("平均(直球)", f"{fb_data['RelSpeed'].mean():.1f}" if not fb_data.empty else "-")
+    m_cols[2].metric("最速", f"{f_data['RelSpeed'].max():.1f}")
     if mode == "full":
         m_cols[3].metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         m_cols[4].metric("初球スト", f"{(f_data[f_data.get('is_first_pitch',0)==1]['is_strike'].mean()*100):.1f} %")
@@ -150,11 +162,16 @@ def render_stats_tab(f_data, mode="full", key_suffix=""):
     
     summary = f_data.groupby('TaggedPitchType').agg(agg_dict)
     summary.columns = [c[0] + "_" + c[1] for c in summary.columns]
+    
+    # 【修正点】summaryのインデックスをPITCH_ORDER_BASEの順に並び替える
+    safe_order = get_safe_order(f_data)
+    summary = summary.reindex(safe_order)
+    summary = summary.dropna(subset=['RelSpeed_count']) # reindexで入った余計な行を消す
+
     summary['割合'] = (summary['RelSpeed_count'] / summary['RelSpeed_count'].sum() * 100)
     
-    # 【修正箇所】平均球速と最速を別の列に展開
     disp = pd.DataFrame(index=summary.index)
-    disp['投球数'] = summary['RelSpeed_count']
+    disp['投球数'] = summary['RelSpeed_count'].astype(int)
     disp['割合'] = summary['割合'].apply(lambda x: f"{x:.1f}%")
     disp['平均球速'] = summary['RelSpeed_mean'].apply(lambda x: f"{x:.1f}")
     disp['最速'] = summary['RelSpeed_max'].apply(lambda x: f"{x:.1f}")
@@ -163,14 +180,16 @@ def render_stats_tab(f_data, mode="full", key_suffix=""):
         disp['ストライク率'] = (summary['is_strike_mean'] * 100).apply(lambda x: f"{x:.1f}%")
         disp['Whiff%'] = (summary['is_whiff_sum'] / summary['is_swing_sum'].replace(0,1) * 100).apply(lambda x: f"{x:.1f}%")
 
-    col_l, col_r = st.columns([2.6, 1]) # 表の幅を少し調整
+    col_l, col_r = st.columns([2.6, 1])
     with col_l:
         st.write("### ● 球種別分析")
         st.table(disp)
     with col_r:
         st.write("### ● 投球割合")
         fig, ax = plt.subplots(figsize=(2.8, 2.8))
-        ax.pie(summary['RelSpeed_count'], labels=summary.index, autopct='%1.1f%%', colors=[PITCH_COLORS.get(s, "#9EDAE5") for s in summary.index])
+        # 円グラフも順序を固定
+        ax.pie(summary['RelSpeed_count'], labels=summary.index, autopct='%1.1f%%', 
+               colors=[PITCH_COLORS.get(s, "#9EDAE5") for s in summary.index], startangle=90, counterclock=False)
         st.pyplot(fig)
 
     if mode == "pitching":
