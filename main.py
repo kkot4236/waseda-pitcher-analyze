@@ -14,7 +14,7 @@ PITCH_ORDER = [
     "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"
 ]
 
-# --- 🔴 パステル調のカラーマップに変更 ---
+# --- パステル調のカラーマップ ---
 PITCH_COLORS = {
     "Fastball": "#AEC7E8",        # 薄い青
     "Slider": "#FFBB78",          # 薄いオレンジ
@@ -28,37 +28,61 @@ PITCH_COLORS = {
     "Unknown": "#9EDAE5"          # 薄い水色
 }
 
+# 球種略称の変換マップ
+PITCH_MAP = {
+    'FB': 'Fastball', 'CB': 'Curveball', 'SL': 'Slider', 
+    'CT': 'Cutter', 'CH': 'ChangeUp', 'SF': 'Splitter', 'SI': 'Sinker'
+}
+
 # --- 2. データ読み込み ---
 @st.cache_data
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
     if not all_files: return None
     list_df = []
+    
     for filename in all_files:
         try:
             temp_df = pd.read_csv(filename, encoding='utf-8')
         except:
             temp_df = pd.read_csv(filename, encoding='cp932')
         
-        fname = os.path.basename(filename)
-        fname_lower = fname.lower()
-        if "紅白戦" in fname: category = "紅白戦"
-        elif "sbp" in fname_lower: category = "SBP"
-        elif "vs" in fname_lower: category = "オープン戦"
-        elif "pbp" in fname_lower: category = "実戦/PBP"
-        elif "pitching" in fname_lower: category = "pitching"
-        else: category = "その他"
-        
+        # 列名の名寄せ
         rename_dict = {
-            'Pitch Type': 'TaggedPitchType', 'Is Strike': 'PitchCall',
-            'RelSpeed (KMH)': 'RelSpeed', 'InducedVertBreak (CM)': 'InducedVertBreak',
-            'HorzBreak (CM)': 'HorzBreak', 'PlateLocSide (CM)': 'PlateLocSide',
-            'PlateLocHeight (CM)': 'PlateLocHeight', 'Batter Side': 'BatterSide'
+            'Pitch Type': 'TaggedPitchType', 
+            'Is Strike': 'PitchCall',
+            'RelSpeed (KMH)': 'RelSpeed', 
+            'InducedVertBreak (CM)': 'InducedVertBreak',
+            'HorzBreak (CM)': 'HorzBreak', 
+            'PlateLocSide (CM)': 'PlateLocSide',
+            'PlateLocHeight (CM)': 'PlateLocHeight', 
+            'Batter Side': 'BatterSide'
         }
         temp_df = temp_df.rename(columns=rename_dict)
-        temp_df['DataCategory'] = category
-        temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip() if 'Pitcher' in temp_df.columns else "Unknown"
         
+        # --- 投手名の処理 (矢後 などの苗字のみを取得) ---
+        if 'Pitcher First Name' in temp_df.columns:
+            temp_df['Pitcher'] = temp_df['Pitcher First Name'].astype(str).str.strip()
+        elif 'Pitcher' in temp_df.columns:
+            temp_df['Pitcher'] = temp_df['Pitcher'].astype(str).str.strip()
+        else:
+            temp_df['Pitcher'] = "Unknown"
+
+        # --- 球種名の変換 (FB -> Fastball) ---
+        if 'TaggedPitchType' in temp_df.columns:
+            temp_df['TaggedPitchType'] = temp_df['TaggedPitchType'].replace(PITCH_MAP)
+
+        # カテゴリ分け
+        fname = os.path.basename(filename).lower()
+        if "紅白戦" in fname: category = "紅白戦"
+        elif "sbp" in fname: category = "SBP"
+        elif "vs" in fname: category = "オープン戦"
+        elif "pbp" in fname: category = "実戦/PBP"
+        elif "pitching" in fname: category = "pitching"
+        else: category = "その他"
+        temp_df['DataCategory'] = category
+        
+        # 指標フラグ
         if 'PitchCall' in temp_df.columns:
             temp_df['is_strike'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_swing'] = temp_df['PitchCall'].apply(lambda x: 1 if str(x).upper() in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
@@ -67,17 +91,25 @@ def load_all_data_from_folder(folder_path):
         if 'Balls' in temp_df.columns and 'Strikes' in temp_df.columns:
             temp_df['is_first_pitch'] = ((temp_df['Balls'] == 0) & (temp_df['Strikes'] == 0)).astype(int)
         
-        temp_df['Date'] = pd.to_datetime(temp_df['Date']).dt.date if 'Date' in temp_df.columns else pd.Timestamp.now().date()
+        # 日付の処理
+        if 'Date' in temp_df.columns:
+            temp_df['Date'] = pd.to_datetime(temp_df['Date']).dt.date
+        elif 'Pitch Created At' in temp_df.columns:
+            temp_df['Date'] = pd.to_datetime(temp_df['Pitch Created At']).dt.date
+        else:
+            temp_df['Date'] = pd.Timestamp.now().date()
+
         list_df.append(temp_df)
     
+    if not list_df: return None
     return pd.concat(list_df, axis=0, ignore_index=True).convert_dtypes(dtype_backend="numpy_nullable")
 
-# --- 3. カウント別分析 (全体割合追加版) ---
+# --- 3. カウント別分析 ---
 def render_count_analysis(f_data, key_suffix):
     st.divider()
     col_head, col_opt = st.columns([3, 1])
     with col_head:
-        st.write("#### カウント別 投球割合")
+        st.write("#### ● カウント別 投球割合")
     with col_opt:
         is_two_strikes = st.checkbox("2ストライクのみ表示", key=f"2s_{key_suffix}")
 
@@ -90,13 +122,10 @@ def render_count_analysis(f_data, key_suffix):
     else:
         count_order = ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
     
-    # 🔴 最後に「全体」を追加
     count_display_order = count_order + ["全体"]
-
     target_df['Count'] = target_df['Balls'].astype(str) + "-" + target_df['Strikes'].astype(str)
     
     count_list = []
-    # カウントごとの計算
     for cnt in count_order:
         df_cnt = target_df[target_df['Count'] == cnt]
         if not df_cnt.empty:
@@ -104,7 +133,6 @@ def render_count_analysis(f_data, key_suffix):
             for pt, val in counts.items():
                 count_list.append({'項目': cnt, '球種': pt, '割合(%)': val})
     
-    # 🔴 「全体」の割合を計算して追加
     total_counts = target_df['TaggedPitchType'].value_counts(normalize=True) * 100
     for pt, val in total_counts.items():
         count_list.append({'項目': "全体", '球種': pt, '割合(%)': val})
@@ -116,10 +144,10 @@ def render_count_analysis(f_data, key_suffix):
         fig_cnt.update_layout(yaxis=dict(range=[0, 100]), margin=dict(l=20, r=20, t=20, b=20), height=350)
         st.plotly_chart(fig_cnt, use_container_width=True)
 
-# --- 4. リスク管理セクション (変更なし) ---
+# --- 4. リスク管理セクション ---
 def render_risk_management_section(f_data):
     st.divider()
-    st.write("####  リスク管理 (打球結果)")
+    st.write("#### ● リスク管理 (打球結果)")
     
     def classify_result(row):
         res = str(row.get('PlayResult','')).lower()
@@ -137,7 +165,6 @@ def render_risk_management_section(f_data):
     f_risk = f_risk.dropna(subset=['ResultCategory'])
     
     cat_order = ['完全アウト(内野フライ+三振)', 'ゴロ', '外野フライ・ライナー', '四死球', '本塁打']
-    # リスク管理の色も少しパステルに
     color_map_risk = {
         '完全アウト(内野フライ+三振)': '#87CEEB', 'ゴロ': '#9ACD32', 
         '外野フライ・ライナー': '#F0E68C', '四死球': '#FFB444', '本塁打': '#F08080'
@@ -226,6 +253,7 @@ def render_stats_tab(f_data, key_suffix):
 
 # --- 6. メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
+
 if df is not None:
     tab_titles = ["● SBP", "● 紅白戦", "● オープン戦", "● PBP", "● pitching"]
     tabs = st.tabs(tab_titles)
@@ -233,11 +261,18 @@ if df is not None:
     for i, cat in enumerate(categories):
         with tabs[i]:
             sub = df[df['DataCategory'] == cat]
-            if sub.empty: continue
-            p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
+            if sub.empty:
+                st.info(f"{cat}のデータはありません。")
+                continue
+            
+            p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "nan"])
             c1, c2 = st.columns(2)
             p = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{i}")
             d = c2.selectbox("日付を選択", ["すべて"] + sorted(sub['Date'].unique().astype(str), reverse=True), key=f"d_{i}")
+            
             if p != "すべて": sub = sub[sub['Pitcher'] == p]
             if d != "すべて": sub = sub[sub['Date'].astype(str) == d]
+            
             render_stats_tab(sub, f"tab_{i}")
+else:
+    st.error("dataフォルダ内にCSVファイルが見つかりません。")
