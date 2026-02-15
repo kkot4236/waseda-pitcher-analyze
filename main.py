@@ -38,7 +38,6 @@ def load_all_data_from_folder(folder_path):
         }
         temp_df = temp_df.rename(columns=rename_dict)
         
-        # 投手名・球種
         p_col = 'Pitcher First Name' if 'Pitcher First Name' in temp_df.columns else 'Pitcher'
         temp_df['Pitcher'] = temp_df[p_col].fillna("Unknown").astype(str).str.strip() if p_col in temp_df.columns else "Unknown"
         
@@ -47,7 +46,6 @@ def load_all_data_from_folder(folder_path):
         else:
             temp_df['TaggedPitchType'] = "Unknown"
 
-        # カテゴリ
         fname = os.path.basename(filename).lower()
         if "紅白戦" in fname: category = "紅白戦"
         elif "sbp" in fname: category = "SBP"
@@ -57,7 +55,6 @@ def load_all_data_from_folder(folder_path):
         else: category = "その他"
         temp_df['DataCategory'] = category
         
-        # 指標
         if 'PitchCall' in temp_df.columns:
             pc = temp_df['PitchCall'].fillna("").astype(str).str.upper()
             temp_df['is_strike'] = pc.apply(lambda x: 1 if x in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
@@ -112,14 +109,12 @@ def render_risk_management_section(f_data, key_suffix):
     st.divider()
     st.write("#### ● リスク管理 (打球結果)")
     
-    # 🔴 元のコードの分類ロジックを忠実に再現
     def classify_result(row):
         res = str(row.get('PlayResult','')).lower()
         call = str(row.get('PitchCall','')).lower()
         hit = str(row.get('TaggedHitType','')).lower()
         if 'home' in res: return '本塁打'
         if 'walk' in res or 'hitby' in res: return '四死球'
-        # 内野フライ(popup)・三振(strikeout)・空振り(swinging)を「完全アウト」に集約
         if 'strikeout' in res or 'strikeout' in call or 'popup' in hit or 'swinging' in call: 
             return '完全アウト(内野フライ+三振)'
         if 'ground' in hit: return 'ゴロ'
@@ -172,11 +167,12 @@ def render_risk_management_section(f_data, key_suffix):
 def render_stats_tab(f_data, key_suffix):
     if f_data.empty: return st.warning("データなし")
     
+    # 🔴 小数点第一位にフォーマット
     m1, m2, m3, m4, m5 = st.columns(5)
     fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
     m1.metric("投球数", f"{len(f_data)} 球")
-    m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f}" if not fb.empty else "-")
-    m3.metric("最速", f"{f_data['RelSpeed'].max():.1f}")
+    m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty else "-")
+    m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
     m5.metric("初球スト", f"{(f_data[f_data.get('is_first_pitch',0)==1]['is_strike'].mean()*100):.1f} %")
 
@@ -185,7 +181,10 @@ def render_stats_tab(f_data, key_suffix):
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
     
+    # 🔴 テーブル内も小数点第一位に修正
     disp = summary.copy()
+    disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
+    disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}")
     disp['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100).apply(lambda x: f"{x:.1f}%")
     disp['ストライク率'] = (summary['ストライク率'] * 100).apply(lambda x: f"{x:.1f}%")
     disp['Whiff %'] = (summary['空振り数'] / summary['スイング数'].replace(0, 1) * 100).apply(lambda x: f"{x:.1f}%")
@@ -213,16 +212,13 @@ if df is not None:
             
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
             c1, c2 = st.columns(2)
-            # 一意のKeyを持たせる
             p_sel = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"sel_p_{i}")
             d_sel = c2.selectbox("日付を選択", ["すべて"] + sorted(sub['Date'].unique().astype(str), reverse=True), key=f"sel_d_{i}")
             
-            # 🔴 フィルタリング
             f_sub = sub.copy()
             if p_sel != "すべて": f_sub = f_sub[f_sub['Pitcher'] == p_sel]
             if d_sel != "すべて": f_sub = f_sub[f_sub['Date'].astype(str) == d_sel]
             
-            # グラフ描画 (投手・日付が変わるたびにKeyも変わるように設定)
             render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_sel}")
 else:
     st.error("CSVなし")
