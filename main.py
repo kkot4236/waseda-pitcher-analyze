@@ -16,23 +16,12 @@ PITCH_ORDER = [
 
 # --- パステル調のカラーマップ ---
 PITCH_COLORS = {
-    "Fastball": "#AEC7E8",        # 薄い青
-    "Slider": "#FFBB78",          # 薄いオレンジ
-    "Cutter": "#98DF8A",          # 薄い緑
-    "Curveball": "#FF9896",       # 薄い赤
-    "ChangeUp": "#C5B0D5",        # 薄い紫
-    "Splitter": "#C49C94",        # 薄い茶
-    "TwoSeamFastBall": "#F7B6D2", # 薄いピンク
-    "OneSeam": "#C7C7C7",         # 薄いグレー
-    "Sinker": "#DBDB8D",          # 薄い黄緑
-    "Unknown": "#9EDAE5"          # 薄い水色
+    "Fastball": "#AEC7E8", "Slider": "#FFBB78", "Cutter": "#98DF8A",
+    "Curveball": "#FF9896", "ChangeUp": "#C5B0D5", "Splitter": "#C49C94",
+    "TwoSeamFastBall": "#F7B6D2", "OneSeam": "#C7C7C7", "Sinker": "#DBDB8D", "Unknown": "#9EDAE5"
 }
 
-# 球種略称の変換マップ
-PITCH_MAP = {
-    'FB': 'Fastball', 'CB': 'Curveball', 'SL': 'Slider', 
-    'CT': 'Cutter', 'CH': 'ChangeUp', 'SF': 'Splitter', 'SI': 'Sinker'
-}
+PITCH_MAP = {'FB': 'Fastball', 'CB': 'Curveball', 'SL': 'Slider', 'CT': 'Cutter', 'CH': 'ChangeUp', 'SF': 'Splitter', 'SI': 'Sinker'}
 
 # --- 2. データ読み込み ---
 @st.cache_data
@@ -40,24 +29,19 @@ def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
     if not all_files: return None
     list_df = []
-    
     for filename in all_files:
         try:
             temp_df = pd.read_csv(filename, encoding='utf-8')
         except:
             temp_df = pd.read_csv(filename, encoding='cp932')
         
-        # 列名の名寄せ
         rename_dict = {
-            'Pitch Type': 'TaggedPitchType', 
-            'RelSpeed (KMH)': 'RelSpeed', 
-            'InducedVertBreak (CM)': 'InducedVertBreak',
-            'HorzBreak (CM)': 'HorzBreak', 
+            'Pitch Type': 'TaggedPitchType', 'RelSpeed (KMH)': 'RelSpeed', 
+            'InducedVertBreak (CM)': 'InducedVertBreak', 'HorzBreak (CM)': 'HorzBreak', 
             'Batter Side': 'BatterSide'
         }
         temp_df = temp_df.rename(columns=rename_dict)
         
-        # --- 投手名の処理 ---
         if 'Pitcher First Name' in temp_df.columns:
             temp_df['Pitcher'] = temp_df['Pitcher First Name'].astype(str).str.strip()
         elif 'Pitcher' in temp_df.columns:
@@ -65,11 +49,9 @@ def load_all_data_from_folder(folder_path):
         else:
             temp_df['Pitcher'] = "Unknown"
 
-        # --- 球種名の変換 ---
         if 'TaggedPitchType' in temp_df.columns:
             temp_df['TaggedPitchType'] = temp_df['TaggedPitchType'].replace(PITCH_MAP)
 
-        # カテゴリ分け
         fname = os.path.basename(filename).lower()
         if "紅白戦" in fname: category = "紅白戦"
         elif "sbp" in fname: category = "SBP"
@@ -79,7 +61,6 @@ def load_all_data_from_folder(folder_path):
         else: category = "その他"
         temp_df['DataCategory'] = category
         
-        # 日付の処理
         if 'Date' in temp_df.columns:
             temp_df['Date'] = pd.to_datetime(temp_df['Date']).dt.date
         elif 'Pitch Created At' in temp_df.columns:
@@ -90,7 +71,6 @@ def load_all_data_from_folder(folder_path):
         list_df.append(temp_df)
     
     if not list_df: return None
-    # pd.NAによるエラーを避けるため convert_dtypes は使用せず結合
     return pd.concat(list_df, axis=0, ignore_index=True)
 
 # --- 3. 変化量グラフ (Break Chart) ---
@@ -101,12 +81,8 @@ def render_break_chart(f_data):
     if 'InducedVertBreak' not in f_data.columns or 'HorzBreak' not in f_data.columns:
         return st.info("変化量データがありません。")
 
-    # 【修正ポイント】グラフ描画の前に、球種や数値が欠損している行を除外する
     plot_df = f_data.dropna(subset=['TaggedPitchType', 'InducedVertBreak', 'HorzBreak']).copy()
-    
-    # さらに TaggedPitchType が "<NA>" や空文字のものを除外
     plot_df = plot_df[plot_df['TaggedPitchType'].astype(str).str.strip() != ""]
-    plot_df = plot_df[plot_df['TaggedPitchType'].astype(str) != "<NA>"]
 
     if plot_df.empty:
         return st.warning("有効な変化量データがありません。")
@@ -123,20 +99,35 @@ def render_break_chart(f_data):
         hover_data={'RelSpeed': ':.1f', 'Pitcher': True}
     )
 
+    # 十字の基準線
     fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.7)
     fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.7)
     
+    # 【修正ポイント】正方形にするための設定
     fig.update_layout(
-        height=600,
-        xaxis=dict(range=[-60, 60], zeroline=False),
-        yaxis=dict(range=[-60, 60], zeroline=False),
+        width=700,   # 横幅を固定
+        height=700,  # 縦幅を同じ値に固定
+        xaxis=dict(
+            range=[-80, 80], 
+            zeroline=False,
+            # 縦軸とスケールを合わせる
+            scaleanchor="y",
+            scaleratio=1,
+        ),
+        yaxis=dict(
+            range=[-80, 80], 
+            zeroline=False
+        ),
         legend_title="球種",
         plot_bgcolor='white'
     )
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
 
-    st.plotly_chart(fig, use_container_width=True)
+    # 中央に表示するためにコンテナを使用
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col2:
+        st.plotly_chart(fig, use_container_width=False) # Falseにすることで固定サイズを維持
 
 # --- 4. 統計タブ描画 ---
 def render_stats_tab(f_data):
@@ -148,7 +139,6 @@ def render_stats_tab(f_data):
     m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty else "-")
     m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
 
-    # 統計用データから欠損を除外
     clean_summary_df = f_data.dropna(subset=['TaggedPitchType'])
     summary = clean_summary_df.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max']})
     summary.columns = ['投球数', '平均球速', '最速']
@@ -177,7 +167,6 @@ def render_stats_tab(f_data):
     render_break_chart(f_data)
 
 # --- 5. メインロジック ---
-# フォルダパスを適切に取得
 current_dir = os.path.dirname(__file__)
 data_path = os.path.join(current_dir, "data")
 df = load_all_data_from_folder(data_path)
@@ -193,7 +182,7 @@ if df is not None:
                 st.info(f"{cat}のデータはありません。")
                 continue
             
-            p_list = sorted([str(p) for p in sub['Pitcher'].unique() if str(p) != "nan" and str(p) != "<NA>"])
+            p_list = sorted([str(p) for p in sub['Pitcher'].unique() if str(p) != "nan"])
             c1, c2 = st.columns(2)
             p = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"p_{i}")
             d = c2.selectbox("日付を選択", ["すべて"] + sorted(sub['Date'].unique().astype(str), reverse=True), key=f"d_{i}")
