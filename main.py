@@ -150,8 +150,8 @@ def render_stats_tab(f_data, mode="full", key_suffix=""):
     # Fastballの平均球速表示用
     fb_data = f_data[f_data['TaggedPitchType'] == "Fastball"]
     m_cols[0].metric("投球数", f"{len(f_data)} 球")
-    m_cols[1].metric("平均(直球)", f"{fb_data['RelSpeed'].mean():.1f}" if not fb_data.empty else "-")
-    m_cols[2].metric("最速", f"{f_data['RelSpeed'].max():.1f}")
+    m_cols[1].metric("平均(直球)", f"{fb_data['RelSpeed'].mean():.1f} km/h" if not fb_data.empty else "-")
+    m_cols[2].metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
     if mode == "full":
         m_cols[3].metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
         m_cols[4].metric("初球スト", f"{(f_data[f_data.get('is_first_pitch',0)==1]['is_strike'].mean()*100):.1f} %")
