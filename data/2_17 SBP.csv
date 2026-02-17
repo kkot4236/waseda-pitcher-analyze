@@ -1,0 +1,400 @@
+﻿PitchNo,Date,PAofInning,PitchofPA,Pitcher,PitcherThrows,Batter,BatterSide,Outs,Balls,Strikes,TaggedPitchType,PitchCall,PlayResult,TaggedHitType,RelSpeed,Runner
+1,2026/2/17,1,1,矢後,Right,"Izakura, Yuto",Left,0,0,0,Fastball,BallCalled,,,132,1
+2,2026/2/17,1,2,矢後,Right,"Izakura, Yuto",Left,0,1,0,Fastball,StrikeSwinging,,Bunt,136,1
+3,2026/2/17,1,3,矢後,Right,"Izakura, Yuto",Left,0,1,1,Fastball,BallCalled,,,135,1
+4,2026/2/17,1,4,矢後,Right,"Izakura, Yuto",Left,0,2,1,Fastball,InPlay,Out,Bunt,134,1
+5,2026/2/17,2,1,矢後,Right,"Yamane, Juntaro",Right,1,0,0,Fastball,FoulBallFieldable,,,133,1
+6,2026/2/17,2,2,矢後,Right,"Yamane, Juntaro",Right,1,0,1,Fastball,BallCalled,,,136,1
+7,2026/2/17,2,3,矢後,Right,"Yamane, Juntaro",Right,1,1,1,Fastball,StrikeCalled,,,134,1
+8,2026/2/17,2,4,矢後,Right,"Yamane, Juntaro",Right,1,1,2,Fastball,BallCalled,,,139,1
+9,2026/2/17,2,5,矢後,Right,"Yamane, Juntaro",Right,1,2,2,Curveball,BallCalled,,,115,1
+10,2026/2/17,2,6,矢後,Right,"Yamane, Juntaro",Right,1,3,2,Fastball,InPlay,Single,FlyBall,137,1
+11,2026/2/17,3,1,矢後,Right,"Okanishi, yuya",Left,1,0,0,Curveball,StrikeCalled,,,115,1
+12,2026/2/17,3,2,矢後,Right,"Okanishi, yuya",Left,1,0,1,Fastball,StrikeCalled,,,137,1
+13,2026/2/17,3,3,矢後,Right,"Okanishi, yuya",Left,1,0,2,Fastball,BallCalled,,,136,1
+14,2026/2/17,3,4,矢後,Right,"Okanishi, yuya",Left,1,1,2,Splitter,BallCalled,,,130,1
+15,2026/2/17,3,5,矢後,Right,"Okanishi, yuya",Left,1,2,2,Fastball,FoulBallFieldable,,,137,1
+16,2026/2/17,3,6,矢後,Right,"Okanishi, yuya",Left,1,2,2,Fastball,InPlay,Out,GroundBall,137,1
+17,2026/2/17,4,1,矢後,Right,"Terao, Kensei",Right,2,0,0,Curveball,StrikeCalled,,,112,1
+18,2026/2/17,4,2,矢後,Right,"Terao, Kensei",Right,2,0,1,Curveball,InPlay,Out,GroundBall,112,1
+19,2026/2/17,1,1,矢後,Right,"Tokumaru, Kaisei",Left,0,0,0,Fastball,BallCalled,,,134,1
+20,2026/2/17,1,2,矢後,Right,"Tokumaru, Kaisei",Left,0,1,0,Fastball,FoulBallFieldable,,Bunt,136,1
+21,2026/2/17,1,3,矢後,Right,"Tokumaru, Kaisei",Left,0,1,1,Fastball,InPlay,Out,Bunt,137,1
+22,2026/2/17,2,1,矢後,Right,"Takahashi, Hitoto",Right,2,0,0,Curveball,BallCalled,,,116,1
+23,2026/2/17,2,2,矢後,Right,"Takahashi, Hitoto",Right,2,1,0,Fastball,InPlay,Double,FlyBall,135,1
+24,2026/2/17,3,1,矢後,Right,"Fukumoto, Seiya",Left,2,0,0,Curveball,StrikeCalled,,,114,1
+25,2026/2/17,3,2,矢後,Right,"Fukumoto, Seiya",Left,2,0,1,Splitter,BallCalled,,,128,1
+26,2026/2/17,3,3,矢後,Right,"Fukumoto, Seiya",Left,2,1,1,Fastball,BallCalled,,,138,1
+27,2026/2/17,3,4,矢後,Right,"Fukumoto, Seiya",Left,2,2,1,Fastball,FoulBallFieldable,,,138,1
+28,2026/2/17,3,5,矢後,Right,"Fukumoto, Seiya",Left,2,2,2,Fastball,StrikeCalled,Strikeout,,139,1
+29,2026/2/17,1,1,矢後,Right,"Ouchi, Aoma",Left,0,0,0,Fastball,BallCalled,,,137,1
+30,2026/2/17,1,2,矢後,Right,"Ouchi, Aoma",Left,0,1,0,Fastball,InPlay,Single,GroundBall,136,1
+31,2026/2/17,2,1,矢後,Right,"Okoshi, Rui",Right,0,0,0,Fastball,BallCalled,,,133,1
+32,2026/2/17,2,2,矢後,Right,"Okoshi, Rui",Right,0,1,0,Fastball,BallCalled,,,134,1
+33,2026/2/17,2,3,矢後,Right,"Okoshi, Rui",Right,0,2,0,Fastball,BallCalled,,,136,1
+34,2026/2/17,2,4,矢後,Right,"Okoshi, Rui",Right,0,3,0,Fastball,InPlay,Out,Bunt,138,1
+1,2026/2/17,1,1,石島,Right,"Izakura, Yuto",Left,0,0,0,Slider,StrikeCalled,,,115,
+2,2026/2/17,1,2,石島,Right,"Izakura, Yuto",Left,0,0,1,Slider,BallCalled,,,120,
+3,2026/2/17,1,3,石島,Right,"Izakura, Yuto",Left,0,1,1,Fastball,FoulBallFieldable,,,133,
+4,2026/2/17,1,4,石島,Right,"Izakura, Yuto",Left,0,1,2,Fastball,FoulBallFieldable,,,134,
+5,2026/2/17,1,5,石島,Right,"Izakura, Yuto",Left,0,1,2,TwoSeamFastball,BallCalled,,,131,
+6,2026/2/17,1,6,石島,Right,"Izakura, Yuto",Left,0,2,2,Fastball,FoulBallFieldable,,,134,
+7,2026/2/17,1,7,石島,Right,"Izakura, Yuto",Left,0,2,2,Fastball,InPlay,Out,GroundBall,133,
+8,2026/2/17,2,1,石島,Right,"Yamane, Juntaro",Right,1,0,0,Slider,StrikeCalled,,,121,
+9,2026/2/17,2,2,石島,Right,"Yamane, Juntaro",Right,1,0,1,Slider,BallCalled,,,120,
+10,2026/2/17,2,3,石島,Right,"Yamane, Juntaro",Right,1,1,1,Fastball,InPlay,Out,LineDrive,134,
+11,2026/2/17,3,1,石島,Right,"Okanishi, yuya",Left,2,0,0,Fastball,StrikeCalled,,,132,
+12,2026/2/17,3,2,石島,Right,"Okanishi, yuya",Left,2,0,1,Slider,FoulBallFieldable,,,123,
+13,2026/2/17,3,3,石島,Right,"Okanishi, yuya",Left,2,0,2,Fastball,BallCalled,,,135,
+14,2026/2/17,3,4,石島,Right,"Okanishi, yuya",Left,2,1,2,TwoSeamFastball,FoulBallFieldable,,,132,
+15,2026/2/17,3,5,石島,Right,"Okanishi, yuya",Left,2,1,2,Fastball,BallCalled,,,134,
+16,2026/2/17,3,6,石島,Right,"Okanishi, yuya",Left,2,2,2,Slider,FoulBallFieldable,,,120,
+17,2026/2/17,3,7,石島,Right,"Okanishi, yuya",Left,2,2,2,Fastball,StrikeCalled,Strikeout,,135,
+18,2026/2/17,1,1,石島,Right,"Terao, Kensei",Right,0,0,0,Slider,StrikeCalled,,,119,
+19,2026/2/17,1,2,石島,Right,"Terao, Kensei",Right,0,0,1,Fastball,InPlay,Single,GroundBall,135,
+20,2026/2/17,2,1,石島,Right,"Tokumaru, Kaisei",Left,0,0,0,Fastball,StrikeCalled,,,133,1
+21,2026/2/17,2,2,石島,Right,"Tokumaru, Kaisei",Left,0,0,1,Fastball,StrikeCalled,,,135,1
+22,2026/2/17,2,3,石島,Right,"Tokumaru, Kaisei",Left,0,0,2,Fastball,InPlay,Out,GroundBall,135,1
+23,2026/2/17,3,1,石島,Right,"Takahashi, Hitoto",Right,1,0,0,Slider,StrikeCalled,,,123,1
+24,2026/2/17,3,2,石島,Right,"Takahashi, Hitoto",Right,1,0,1,Slider,BallCalled,,,123,1
+25,2026/2/17,3,3,石島,Right,"Takahashi, Hitoto",Right,1,1,1,Slider,InPlay,Out,FlyBall,122,1
+26,2026/2/17,4,1,石島,Right,"Fukumoto, Seiya",Left,2,0,0,Fastball,BallCalled,,,134,1
+27,2026/2/17,4,2,石島,Right,"Fukumoto, Seiya",Left,2,1,0,TwoSeamFastball,BallCalled,,,131,1
+28,2026/2/17,4,3,石島,Right,"Fukumoto, Seiya",Left,2,2,0,Slider,BallCalled,,,120,1
+29,2026/2/17,4,4,石島,Right,"Fukumoto, Seiya",Left,2,3,0,Fastball,BallCalled,Walk,,131,1
+30,2026/2/17,5,1,石島,Right,"Ouchi, Aoma",Left,2,0,0,Slider,StrikeCalled,,,125,1
+31,2026/2/17,5,2,石島,Right,"Ouchi, Aoma",Left,2,0,1,Fastball,BallCalled,,,134,1
+32,2026/2/17,5,3,石島,Right,"Ouchi, Aoma",Left,2,1,1,Fastball,StrikeCalled,,,134,1
+33,2026/2/17,5,4,石島,Right,"Ouchi, Aoma",Left,2,1,2,Fastball,InPlay,Out,GroundBall,132,1
+34,2026/2/17,1,1,石島,Right,"Okoshi, Rui",Right,0,0,0,Fastball,BallCalled,,,133,
+35,2026/2/17,1,2,石島,Right,"Okoshi, Rui",Right,0,1,0,Fastball,BallCalled,,,131,
+36,2026/2/17,1,3,石島,Right,"Okoshi, Rui",Right,0,2,0,Fastball,InPlay,Out,GroundBall,133,
+37,2026/2/17,2,1,石島,Right,"Fukumoto, Seiya",Left,1,0,0,TwoSeamFastball,BallCalled,,,132,
+38,2026/2/17,2,2,石島,Right,"Fukumoto, Seiya",Left,1,1,0,Slider,BallCalled,,,120,
+39,2026/2/17,2,3,石島,Right,"Fukumoto, Seiya",Left,1,2,0,ChangeUp,FoulBallFieldable,,,133,
+40,2026/2/17,2,4,石島,Right,"Fukumoto, Seiya",Left,1,2,1,Fastball,FoulBallFieldable,,,134,
+41,2026/2/17,2,5,石島,Right,"Fukumoto, Seiya",Left,1,2,2,Fastball,FoulBallFieldable,,,135,
+42,2026/2/17,2,6,石島,Right,"Fukumoto, Seiya",Left,1,2,2,Fastball,FoulBallFieldable,,,132,
+43,2026/2/17,2,7,石島,Right,"Fukumoto, Seiya",Left,1,2,2,Slider,InPlay,Out,FlyBall,122,
+1,2026/2/17,1,1,西山,Right,"Nakamura, Shunei",Left,0,0,0,Fastball,InPlay,Sacrifice,Bunt,124,1
+2,2026/2/17,2,1,西山,Right,"Yuasa, Osuke",Right,1,0,0,Fastball,BallCalled,,,126,1
+3,2026/2/17,2,2,西山,Right,"Yuasa, Osuke",Right,1,1,0,Curveball,BallCalled,,,100,1
+4,2026/2/17,2,3,西山,Right,"Yuasa, Osuke",Right,1,2,0,Fastball,StrikeCalled,,,131,1
+5,2026/2/17,2,4,西山,Right,"Yuasa, Osuke",Right,1,2,1,Splitter,FoulBallFieldable,,,116,1
+6,2026/2/17,2,5,西山,Right,"Yuasa, Osuke",Right,1,2,2,Fastball,InPlay,Out,GroundBall,136,1
+7,2026/2/17,3,1,西山,Right,"Hosotani, Shunsuke",Left,0,0,0,Fastball,BallCalled,,,130,1
+8,2026/2/17,3,2,西山,Right,"Hosotani, Shunsuke",Left,0,1,0,Fastball,StrikeCalled,,,126,1
+9,2026/2/17,3,3,西山,Right,"Hosotani, Shunsuke",Left,0,1,1,Fastball,FoulBallFieldable,,,128,1
+10,2026/2/17,3,4,西山,Right,"Hosotani, Shunsuke",Left,0,1,2,ChangeUp,FoulBallFieldable,,,118,1
+11,2026/2/17,3,5,西山,Right,"Hosotani, Shunsuke",Left,0,1,2,Fastball,BallCalled,,,134,1
+12,2026/2/17,3,6,西山,Right,"Hosotani, Shunsuke",Left,0,2,2,Fastball,InPlay,Out,GroundBall,128,1
+13,2026/2/17,4,1,西山,Right,"Nagata, Hyuga",Right,1,0,0,Curveball,BallCalled,,,101,
+14,2026/2/17,4,2,西山,Right,"Nagata, Hyuga",Right,1,1,0,Fastball,StrikeCalled,,,134,
+15,2026/2/17,4,3,西山,Right,"Nagata, Hyuga",Right,1,1,1,Fastball,FoulBallFieldable,,,138,
+16,2026/2/17,4,4,西山,Right,"Nagata, Hyuga",Right,1,1,2,Splitter,BallCalled,,,123,
+17,2026/2/17,4,5,西山,Right,"Nagata, Hyuga",Right,1,2,2,ChangeUp,StrikeSwinging,Strikeout,,117,
+18,2026/2/17,5,1,西山,Right,"Kurosu, Shintaro",Left,2,0,0,Fastball,BallCalled,,,139,
+19,2026/2/17,5,2,西山,Right,"Kurosu, Shintaro",Left,2,1,0,Fastball,StrikeCalled,,,126,
+20,2026/2/17,5,3,西山,Right,"Kurosu, Shintaro",Left,2,1,1,Splitter,StrikeCalled,,,119,
+21,2026/2/17,5,4,西山,Right,"Kurosu, Shintaro",Left,2,1,2,Fastball,FoulBallFieldable,,,136,
+22,2026/2/17,5,5,西山,Right,"Kurosu, Shintaro",Left,2,1,2,Curveball,BallCalled,,,100,
+23,2026/2/17,5,6,西山,Right,"Kurosu, Shintaro",Left,2,2,2,Splitter,BallCalled,,,121,
+24,2026/2/17,5,7,西山,Right,"Kurosu, Shintaro",Left,2,3,2,Fastball,InPlay,Single,LineDrive,137,
+25,2026/2/17,6,1,西山,Right,"Kaneko, Daichi",Right,2,0,0,Fastball,InPlay,Out,GroundBall,132,1
+26,2026/2/17,1,1,西山,Right,"Sakaguchi, Yuta",Right,0,0,0,Fastball,InPlay,Double,GroundBall,126,1
+27,2026/2/17,2,1,西山,Right,"Iwasaki, Ryo",Right,0,0,0,Fastball,StrikeCalled,,,133,
+28,2026/2/17,2,2,西山,Right,"Iwasaki, Ryo",Right,0,0,1,Fastball,BallCalled,,,139,
+29,2026/2/17,2,3,西山,Right,"Iwasaki, Ryo",Right,0,1,1,ChangeUp,BallCalled,,,113,
+30,2026/2/17,2,4,西山,Right,"Iwasaki, Ryo",Right,0,2,1,Fastball,BallCalled,,,131,
+31,2026/2/17,2,5,西山,Right,"Iwasaki, Ryo",Right,0,3,1,Fastball,BallCalled,Walk,,132,
+32,2026/2/17,3,1,西山,Right,"Komuro, Sota",Right,0,0,0,Fastball,StrikeCalled,,,130,
+33,2026/2/17,3,2,西山,Right,"Komuro, Sota",Right,0,0,1,Fastball,BallCalled,,,132,
+34,2026/2/17,3,3,西山,Right,"Komuro, Sota",Right,0,1,1,Splitter,BallCalled,,,118,
+35,2026/2/17,3,4,西山,Right,"Komuro, Sota",Right,0,2,1,Fastball,BallCalled,,,130,
+36,2026/2/17,3,5,西山,Right,"Komuro, Sota",Right,0,3,1,Fastball,BallCalled,,,129,1
+37,2026/2/17,3,6,西山,Right,"Komuro, Sota",Right,0,0,1,Fastball,BallCalled,Walk,,135,1
+38,2026/2/17,4,1,西山,Right,"Kawajiri, Yuito",Right,0,0,0,Splitter,BallCalled,,,118,
+39,2026/2/17,4,2,西山,Right,"Kawajiri, Yuito",Right,0,1,0,Fastball,BallCalled,,,132,
+40,2026/2/17,4,3,西山,Right,"Kawajiri, Yuito",Right,0,2,0,Fastball,BallCalled,,,132,
+41,2026/2/17,4,4,西山,Right,"Kawajiri, Yuito",Right,0,3,0,Fastball,BallCalled,Walk,,136,
+42,2026/2/17,5,1,西山,Right,"Iwasaki, Ryo",Right,0,0,0,Fastball,BallCalled,,,128,
+43,2026/2/17,5,2,西山,Right,"Iwasaki, Ryo",Right,0,1,0,Fastball,BallCalled,,,133,
+44,2026/2/17,5,3,西山,Right,"Iwasaki, Ryo",Right,0,2,0,Fastball,BallCalled,,,129,
+45,2026/2/17,5,4,西山,Right,"Iwasaki, Ryo",Right,0,3,0,Fastball,BallCalled,Walk,,129,
+1,2026/2/17,1,1,岡村,Right,"Nakamura, Shunei",Left,0,0,0,Splitter,InPlay,Out,FlyBall,121,
+2,2026/2/17,2,1,岡村,Right,"Yuasa, Osuke",Right,1,0,0,Fastball,StrikeCalled,,,134,
+3,2026/2/17,2,2,岡村,Right,"Yuasa, Osuke",Right,1,0,1,Cutter,BallCalled,,,125,
+4,2026/2/17,2,3,岡村,Right,"Yuasa, Osuke",Right,1,1,1,Cutter,BallCalled,,,121,
+5,2026/2/17,2,4,岡村,Right,"Yuasa, Osuke",Right,1,2,1,Cutter,BallCalled,,,123,
+6,2026/2/17,2,5,岡村,Right,"Yuasa, Osuke",Right,1,3,1,Fastball,BallCalled,Walk,,134,
+7,2026/2/17,3,1,岡村,Right,"Hosotani, Shunsuke",Left,1,0,0,Fastball,BallCalled,,,130,1
+8,2026/2/17,3,2,岡村,Right,"Hosotani, Shunsuke",Left,1,1,0,ChangeUp,InPlay,Double,LineDrive,,1
+9,2026/2/17,4,1,岡村,Right,"Nagata, Hyuga",Right,1,0,0,Splitter,BallCalled,,,,1
+10,2026/2/17,4,2,岡村,Right,"Nagata, Hyuga",Right,1,1,0,Splitter,BallCalled,,,,1
+11,2026/2/17,4,3,岡村,Right,"Nagata, Hyuga",Right,1,2,0,Fastball,BallCalled,,,132,1
+12,2026/2/17,4,4,岡村,Right,"Nagata, Hyuga",Right,1,3,0,Fastball,BallCalled,Walk,,131,1
+13,2026/2/17,5,1,岡村,Right,"Kurosu, Shintaro",Right,1,0,0,Fastball,FoulBallFieldable,,,133,1
+14,2026/2/17,5,2,岡村,Right,"Kurosu, Shintaro",Right,1,0,1,Splitter,BallCalled,,,,1
+15,2026/2/17,5,3,岡村,Right,"Kurosu, Shintaro",Right,1,1,1,Splitter,StrikeSwinging,,,,1
+16,2026/2/17,5,4,岡村,Right,"Kurosu, Shintaro",Right,1,1,2,Fastball,InPlay,Single,GroundBall,135,1
+17,2026/2/17,6,1,岡村,Right,"Kaneko, Daichi",Right,1,0,0,Curveball,BallCalled,,,106,1
+18,2026/2/17,6,2,岡村,Right,"Kaneko, Daichi",Right,1,1,0,Fastball,BallCalled,,,135,1
+19,2026/2/17,6,3,岡村,Right,"Kaneko, Daichi",Right,1,2,0,Fastball,BallCalled,,,134,1
+20,2026/2/17,6,4,岡村,Right,"Kaneko, Daichi",Right,1,3,0,Fastball,StrikeCalled,,,134,1
+21,2026/2/17,6,5,岡村,Right,"Kaneko, Daichi",Right,1,3,1,Fastball,BallCalled,Walk,,134,1
+22,2026/2/17,7,1,岡村,Right,"Sakaguchi, Yuta",Right,1,0,0,Fastball,InPlay,Sacrifice,FlyBall,133,1
+23,2026/2/17,8,1,岡村,Right,"Iwasaki, Ryo",Right,2,0,0,Curveball,StrikeCalled,,,101,
+24,2026/2/17,8,2,岡村,Right,"Iwasaki, Ryo",Right,2,0,1,Fastball,StrikeCalled,,,,
+25,2026/2/17,8,3,岡村,Right,"Iwasaki, Ryo",Right,2,0,2,ChangeUp,StrikeCalled,,,124,
+26,2026/2/17,8,4,岡村,Right,"Iwasaki, Ryo",Right,2,0,2,Cutter,BallCalled,,,123,
+27,2026/2/17,8,5,岡村,Right,"Iwasaki, Ryo",Right,2,1,2,Splitter,InPlay,Out,GroundBall,123,
+28,2026/2/17,1,1,岡村,Right,"Komuro, Sota",Right,0,0,0,Curveball,StrikeCalled,,,105,
+29,2026/2/17,1,2,岡村,Right,"Komuro, Sota",Right,0,0,1,Curveball,BallCalled,,,102,
+30,2026/2/17,1,3,岡村,Right,"Komuro, Sota",Right,0,1,1,Fastball,BallCalled,,,134,
+31,2026/2/17,1,4,岡村,Right,"Komuro, Sota",Right,0,2,1,Fastball,StrikeCalled,,,,
+32,2026/2/17,1,5,岡村,Right,"Komuro, Sota",Right,0,2,2,ChangeUp,BallCalled,,,125,
+33,2026/2/17,1,6,岡村,Right,"Komuro, Sota",Right,0,3,2,Fastball,InPlay,Single,FlyBall,133,
+34,2026/2/17,2,1,岡村,Right,"Kawajiri, Yuito",Right,0,0,0,Curveball,InPlay,Out,Bunt,106,1
+35,2026/2/17,3,1,岡村,Right,"Yuasa, Osuke",Right,1,0,0,Fastball,BallCalled,,,124,1
+36,2026/2/17,3,2,岡村,Right,"Yuasa, Osuke",Right,1,1,0,Fastball,BallCalled,,,132,1
+37,2026/2/17,3,3,岡村,Right,"Yuasa, Osuke",Right,1,2,0,Fastball,FoulBallFieldable,,,,1
+38,2026/2/17,3,4,岡村,Right,"Yuasa, Osuke",Right,1,2,1,Fastball,BallCalled,,,132,1
+39,2026/2/17,3,5,岡村,Right,"Yuasa, Osuke",Right,1,3,1,Fastball,BallCalled,Walk,,,1
+40,2026/2/17,4,1,岡村,Right,"Nagata, Hyuga",Right,1,0,0,Curveball,BallCalled,,,107,1
+41,2026/2/17,4,2,岡村,Right,"Nagata, Hyuga",Right,1,1,0,Splitter,FoulBallFieldable,,,125,1
+42,2026/2/17,4,3,岡村,Right,"Nagata, Hyuga",Right,1,1,1,Splitter,BallCalled,,,124,1
+43,2026/2/17,4,4,岡村,Right,"Nagata, Hyuga",Right,1,2,1,Fastball,BallCalled,,,132,1
+44,2026/2/17,4,5,岡村,Right,"Nagata, Hyuga",Right,1,3,1,Fastball,StrikeCalled,,,134,1
+45,2026/2/17,4,6,岡村,Right,"Nagata, Hyuga",Right,1,3,2,Fastball,FoulBallFieldable,,,134,1
+46,2026/2/17,4,7,岡村,Right,"Nagata, Hyuga",Right,1,3,2,Fastball,InPlay,Out,GroundBall,132,1
+47,2026/2/17,5,1,岡村,Right,"Kaneko, Daichi",Right,2,0,0,Splitter,BallCalled,,,125,1
+48,2026/2/17,5,2,岡村,Right,"Kaneko, Daichi",Right,2,1,0,Fastball,InPlay,Double,LineDrive,133,1
+49,2026/2/17,6,1,岡村,Right,"Yuasa, Osuke",Right,2,0,0,ChangeUp,StrikeCalled,,,125,1
+50,2026/2/17,6,2,岡村,Right,"Yuasa, Osuke",Right,2,0,1,Cutter,StrikeSwinging,,,125,1
+51,2026/2/17,6,3,岡村,Right,"Yuasa, Osuke",Right,2,0,2,Cutter,BallCalled,,,123,1
+52,2026/2/17,6,4,岡村,Right,"Yuasa, Osuke",Right,2,1,2,Splitter,InPlay,Triple,FlyBall,125,1
+53,2026/2/17,7,1,岡村,Right,,,2,0,0,,,,,,
+54,2026/2/17,7,2,岡村,Right,,,2,0,0,,,,,,
+55,2026/2/17,7,3,岡村,Right,,,2,0,0,,,,,,
+56,2026/2/17,7,4,岡村,Right,,,2,0,0,,,,,,
+57,2026/2/17,7,5,岡村,Right,,,2,0,0,,,,,,
+58,2026/2/17,7,6,岡村,Right,,,2,0,0,,,,,,
+59,2026/2/17,7,7,岡村,Right,,,2,0,0,,,,,,
+60,2026/2/17,7,8,岡村,Right,,,2,0,0,,,,,,
+61,2026/2/17,7,9,岡村,Right,,,2,0,0,,,,,,
+62,2026/2/17,7,10,岡村,Right,,,2,0,0,,,,,,
+63,2026/2/17,7,11,岡村,Right,,,2,0,0,,,,,,
+64,2026/2/17,7,12,岡村,Right,,,2,0,0,,,,,,
+65,2026/2/17,7,13,岡村,Right,,,2,0,0,,,,,,
+66,2026/2/17,7,14,岡村,Right,,,2,0,0,,,,,,
+67,2026/2/17,7,15,岡村,Right,,,2,0,0,,,,,,
+68,2026/2/17,7,16,岡村,Right,,,2,0,0,,,,,,
+69,2026/2/17,7,17,岡村,Right,,,2,0,0,,,,,,
+70,2026/2/17,7,18,岡村,Right,,,2,0,0,,,,,,
+71,2026/2/17,7,19,岡村,Right,,,2,0,0,,,,,,
+72,2026/2/17,7,20,岡村,Right,,,2,0,0,,,,,,
+73,2026/2/17,7,21,岡村,Right,,,2,0,0,,,,,,
+74,2026/2/17,7,22,岡村,Right,,,2,0,0,,,,,,
+75,2026/2/17,7,23,岡村,Right,,,2,0,0,,,,,,
+76,2026/2/17,7,24,岡村,Right,,,2,0,0,,,,,,
+77,2026/2/17,7,25,岡村,Right,,,2,0,0,,,,,,
+78,2026/2/17,7,26,岡村,Right,,,2,0,0,,,,,,
+79,2026/2/17,7,27,岡村,Right,,,2,0,0,,,,,,
+80,2026/2/17,7,28,岡村,Right,,,2,0,0,,,,,,
+81,2026/2/17,7,29,岡村,Right,,,2,0,0,,,,,,
+82,2026/2/17,7,30,岡村,Right,,,2,0,0,,,,,,
+83,2026/2/17,7,31,岡村,Right,,,2,0,0,,,,,,
+84,2026/2/17,7,32,岡村,Right,,,2,0,0,,,,,,
+85,2026/2/17,7,33,岡村,Right,,,2,0,0,,,,,,
+86,2026/2/17,7,34,岡村,Right,,,2,0,0,,,,,,
+87,2026/2/17,7,35,岡村,Right,,,2,0,0,,,,,,
+88,2026/2/17,7,36,岡村,Right,,,2,0,0,,,,,,
+89,2026/2/17,7,37,岡村,Right,,,2,0,0,,,,,,
+90,2026/2/17,7,38,岡村,Right,,,2,0,0,,,,,,
+91,2026/2/17,7,39,岡村,Right,,,2,0,0,,,,,,
+92,2026/2/17,7,40,岡村,Right,,,2,0,0,,,,,,
+93,2026/2/17,7,41,岡村,Right,,,2,0,0,,,,,,
+94,2026/2/17,7,42,岡村,Right,,,2,0,0,,,,,,
+95,2026/2/17,7,43,岡村,Right,,,2,0,0,,,,,,
+96,2026/2/17,7,44,岡村,Right,,,2,0,0,,,,,,
+97,2026/2/17,7,45,岡村,Right,,,2,0,0,,,,,,
+98,2026/2/17,7,46,岡村,Right,,,2,0,0,,,,,,
+99,2026/2/17,7,47,岡村,Right,,,2,0,0,,,,,,
+100,2026/2/17,7,48,岡村,Right,,,2,0,0,,,,,,
+101,2026/2/17,7,49,岡村,Right,,,2,0,0,,,,,,
+102,2026/2/17,7,50,岡村,Right,,,2,0,0,,,,,,
+103,2026/2/17,7,51,岡村,Right,,,2,0,0,,,,,,
+104,2026/2/17,7,52,岡村,Right,,,2,0,0,,,,,,
+105,2026/2/17,7,53,岡村,Right,,,2,0,0,,,,,,
+106,2026/2/17,7,54,岡村,Right,,,2,0,0,,,,,,
+107,2026/2/17,7,55,岡村,Right,,,2,0,0,,,,,,
+108,2026/2/17,7,56,岡村,Right,,,2,0,0,,,,,,
+109,2026/2/17,7,57,岡村,Right,,,2,0,0,,,,,,
+110,2026/2/17,7,58,岡村,Right,,,2,0,0,,,,,,
+111,2026/2/17,7,59,岡村,Right,,,2,0,0,,,,,,
+112,2026/2/17,7,60,岡村,Right,,,2,0,0,,,,,,
+113,2026/2/17,7,61,岡村,Right,,,2,0,0,,,,,,
+114,2026/2/17,7,62,岡村,Right,,,2,0,0,,,,,,
+115,2026/2/17,7,63,岡村,Right,,,2,0,0,,,,,,
+116,2026/2/17,7,64,岡村,Right,,,2,0,0,,,,,,
+117,2026/2/17,7,65,岡村,Right,,,2,0,0,,,,,,
+118,2026/2/17,7,66,岡村,Right,,,2,0,0,,,,,,
+119,2026/2/17,7,67,岡村,Right,,,2,0,0,,,,,,
+120,2026/2/17,7,68,岡村,Right,,,2,0,0,,,,,,
+121,2026/2/17,7,69,岡村,Right,,,2,0,0,,,,,,
+122,2026/2/17,7,70,岡村,Right,,,2,0,0,,,,,,
+123,2026/2/17,7,71,岡村,Right,,,2,0,0,,,,,,
+124,2026/2/17,7,72,岡村,Right,,,2,0,0,,,,,,
+125,2026/2/17,7,73,岡村,Right,,,2,0,0,,,,,,
+126,2026/2/17,7,74,岡村,Right,,,2,0,0,,,,,,
+127,2026/2/17,7,75,岡村,Right,,,2,0,0,,,,,,
+128,2026/2/17,7,76,岡村,Right,,,2,0,0,,,,,,
+129,2026/2/17,7,77,岡村,Right,,,2,0,0,,,,,,
+130,2026/2/17,7,78,岡村,Right,,,2,0,0,,,,,,
+131,2026/2/17,7,79,岡村,Right,,,2,0,0,,,,,,
+132,2026/2/17,7,80,岡村,Right,,,2,0,0,,,,,,
+133,2026/2/17,7,81,岡村,Right,,,2,0,0,,,,,,
+134,2026/2/17,7,82,岡村,Right,,,2,0,0,,,,,,
+135,2026/2/17,7,83,岡村,Right,,,2,0,0,,,,,,
+136,2026/2/17,7,84,岡村,Right,,,2,0,0,,,,,,
+137,2026/2/17,7,85,岡村,Right,,,2,0,0,,,,,,
+138,2026/2/17,7,86,岡村,Right,,,2,0,0,,,,,,
+139,2026/2/17,7,87,岡村,Right,,,2,0,0,,,,,,
+140,2026/2/17,7,88,岡村,Right,,,2,0,0,,,,,,
+141,2026/2/17,7,89,岡村,Right,,,2,0,0,,,,,,
+142,2026/2/17,7,90,岡村,Right,,,2,0,0,,,,,,
+143,2026/2/17,7,91,岡村,Right,,,2,0,0,,,,,,
+144,2026/2/17,7,92,岡村,Right,,,2,0,0,,,,,,
+145,2026/2/17,7,93,岡村,Right,,,2,0,0,,,,,,
+146,2026/2/17,7,94,岡村,Right,,,2,0,0,,,,,,
+147,2026/2/17,7,95,岡村,Right,,,2,0,0,,,,,,
+148,2026/2/17,7,96,岡村,Right,,,2,0,0,,,,,,
+149,2026/2/17,7,97,岡村,Right,,,2,0,0,,,,,,
+150,2026/2/17,7,98,岡村,Right,,,2,0,0,,,,,,
+151,2026/2/17,7,99,岡村,Right,,,2,0,0,,,,,,
+152,2026/2/17,7,100,岡村,Right,,,2,0,0,,,,,,
+153,2026/2/17,7,101,岡村,Right,,,2,0,0,,,,,,
+154,2026/2/17,7,102,岡村,Right,,,2,0,0,,,,,,
+155,2026/2/17,7,103,岡村,Right,,,2,0,0,,,,,,
+156,2026/2/17,7,104,岡村,Right,,,2,0,0,,,,,,
+157,2026/2/17,7,105,岡村,Right,,,2,0,0,,,,,,
+158,2026/2/17,7,106,岡村,Right,,,2,0,0,,,,,,
+159,2026/2/17,7,107,岡村,Right,,,2,0,0,,,,,,
+160,2026/2/17,7,108,岡村,Right,,,2,0,0,,,,,,
+161,2026/2/17,7,109,岡村,Right,,,2,0,0,,,,,,
+162,2026/2/17,7,110,岡村,Right,,,2,0,0,,,,,,
+163,2026/2/17,7,111,岡村,Right,,,2,0,0,,,,,,
+164,2026/2/17,7,112,岡村,Right,,,2,0,0,,,,,,
+165,2026/2/17,7,113,岡村,Right,,,2,0,0,,,,,,
+166,2026/2/17,7,114,岡村,Right,,,2,0,0,,,,,,
+167,2026/2/17,7,115,岡村,Right,,,2,0,0,,,,,,
+168,2026/2/17,7,116,岡村,Right,,,2,0,0,,,,,,
+169,2026/2/17,7,117,岡村,Right,,,2,0,0,,,,,,
+170,2026/2/17,7,118,岡村,Right,,,2,0,0,,,,,,
+171,2026/2/17,7,119,岡村,Right,,,2,0,0,,,,,,
+172,2026/2/17,7,120,岡村,Right,,,2,0,0,,,,,,
+173,2026/2/17,7,121,岡村,Right,,,2,0,0,,,,,,
+174,2026/2/17,7,122,岡村,Right,,,2,0,0,,,,,,
+175,2026/2/17,7,123,岡村,Right,,,2,0,0,,,,,,
+176,2026/2/17,7,124,岡村,Right,,,2,0,0,,,,,,
+177,2026/2/17,7,125,岡村,Right,,,2,0,0,,,,,,
+178,2026/2/17,7,126,岡村,Right,,,2,0,0,,,,,,
+179,2026/2/17,7,127,岡村,Right,,,2,0,0,,,,,,
+180,2026/2/17,7,128,岡村,Right,,,2,0,0,,,,,,
+181,2026/2/17,7,129,岡村,Right,,,2,0,0,,,,,,
+182,2026/2/17,7,130,岡村,Right,,,2,0,0,,,,,,
+183,2026/2/17,7,131,岡村,Right,,,2,0,0,,,,,,
+184,2026/2/17,7,132,岡村,Right,,,2,0,0,,,,,,
+185,2026/2/17,7,133,岡村,Right,,,2,0,0,,,,,,
+186,2026/2/17,7,134,岡村,Right,,,2,0,0,,,,,,
+187,2026/2/17,7,135,岡村,Right,,,2,0,0,,,,,,
+188,2026/2/17,7,136,岡村,Right,,,2,0,0,,,,,,
+189,2026/2/17,7,137,岡村,Right,,,2,0,0,,,,,,
+190,2026/2/17,7,138,岡村,Right,,,2,0,0,,,,,,
+191,2026/2/17,7,139,岡村,Right,,,2,0,0,,,,,,
+192,2026/2/17,7,140,岡村,Right,,,2,0,0,,,,,,
+193,2026/2/17,7,141,岡村,Right,,,2,0,0,,,,,,
+194,2026/2/17,7,142,岡村,Right,,,2,0,0,,,,,,
+195,2026/2/17,7,143,岡村,Right,,,2,0,0,,,,,,
+196,2026/2/17,7,144,岡村,Right,,,2,0,0,,,,,,
+197,2026/2/17,7,145,岡村,Right,,,2,0,0,,,,,,
+198,2026/2/17,7,146,岡村,Right,,,2,0,0,,,,,,
+199,2026/2/17,7,147,岡村,Right,,,2,0,0,,,,,,
+200,2026/2/17,7,148,岡村,Right,,,2,0,0,,,,,,
+201,2026/2/17,7,149,岡村,Right,,,2,0,0,,,,,,
+202,2026/2/17,7,150,岡村,Right,,,2,0,0,,,,,,
+203,2026/2/17,7,151,岡村,Right,,,2,0,0,,,,,,
+204,2026/2/17,7,152,岡村,Right,,,2,0,0,,,,,,
+205,2026/2/17,7,153,岡村,Right,,,2,0,0,,,,,,
+206,2026/2/17,7,154,岡村,Right,,,2,0,0,,,,,,
+207,2026/2/17,7,155,岡村,Right,,,2,0,0,,,,,,
+208,2026/2/17,7,156,岡村,Right,,,2,0,0,,,,,,
+209,2026/2/17,7,157,岡村,Right,,,2,0,0,,,,,,
+210,2026/2/17,7,158,岡村,Right,,,2,0,0,,,,,,
+211,2026/2/17,7,159,岡村,Right,,,2,0,0,,,,,,
+212,2026/2/17,7,160,岡村,Right,,,2,0,0,,,,,,
+213,2026/2/17,7,161,岡村,Right,,,2,0,0,,,,,,
+214,2026/2/17,7,162,岡村,Right,,,2,0,0,,,,,,
+215,2026/2/17,7,163,岡村,Right,,,2,0,0,,,,,,
+216,2026/2/17,7,164,岡村,Right,,,2,0,0,,,,,,
+217,2026/2/17,7,165,岡村,Right,,,2,0,0,,,,,,
+218,2026/2/17,7,166,岡村,Right,,,2,0,0,,,,,,
+219,2026/2/17,7,167,岡村,Right,,,2,0,0,,,,,,
+220,2026/2/17,7,168,岡村,Right,,,2,0,0,,,,,,
+221,2026/2/17,7,169,岡村,Right,,,2,0,0,,,,,,
+222,2026/2/17,7,170,岡村,Right,,,2,0,0,,,,,,
+223,2026/2/17,7,171,岡村,Right,,,2,0,0,,,,,,
+224,2026/2/17,7,172,岡村,Right,,,2,0,0,,,,,,
+225,2026/2/17,7,173,岡村,Right,,,2,0,0,,,,,,
+226,2026/2/17,7,174,岡村,Right,,,2,0,0,,,,,,
+227,2026/2/17,7,175,岡村,Right,,,2,0,0,,,,,,
+228,2026/2/17,7,176,岡村,Right,,,2,0,0,,,,,,
+229,2026/2/17,7,177,岡村,Right,,,2,0,0,,,,,,
+230,2026/2/17,7,178,岡村,Right,,,2,0,0,,,,,,
+231,2026/2/17,7,179,岡村,Right,,,2,0,0,,,,,,
+232,2026/2/17,7,180,岡村,Right,,,2,0,0,,,,,,
+233,2026/2/17,7,181,岡村,Right,,,2,0,0,,,,,,
+234,2026/2/17,7,182,岡村,Right,,,2,0,0,,,,,,
+235,2026/2/17,7,183,岡村,Right,,,2,0,0,,,,,,
+236,2026/2/17,7,184,岡村,Right,,,2,0,0,,,,,,
+237,2026/2/17,7,185,岡村,Right,,,2,0,0,,,,,,
+238,2026/2/17,7,186,岡村,Right,,,2,0,0,,,,,,
+239,2026/2/17,7,187,岡村,Right,,,2,0,0,,,,,,
+240,2026/2/17,7,188,岡村,Right,,,2,0,0,,,,,,
+241,2026/2/17,7,189,岡村,Right,,,2,0,0,,,,,,
+242,2026/2/17,7,190,岡村,Right,,,2,0,0,,,,,,
+243,2026/2/17,7,191,岡村,Right,,,2,0,0,,,,,,
+244,2026/2/17,7,192,岡村,Right,,,2,0,0,,,,,,
+245,2026/2/17,7,193,岡村,Right,,,2,0,0,,,,,,
+246,2026/2/17,7,194,岡村,Right,,,2,0,0,,,,,,
+247,2026/2/17,7,195,岡村,Right,,,2,0,0,,,,,,
+248,2026/2/17,7,196,岡村,Right,,,2,0,0,,,,,,
+249,2026/2/17,7,197,岡村,Right,,,2,0,0,,,,,,
+250,2026/2/17,7,198,岡村,Right,,,2,0,0,,,,,,
+251,2026/2/17,7,199,岡村,Right,,,2,0,0,,,,,,
+252,2026/2/17,7,200,岡村,Right,,,2,0,0,,,,,,
+253,2026/2/17,7,201,岡村,Right,,,2,0,0,,,,,,
+254,2026/2/17,7,202,岡村,Right,,,2,0,0,,,,,,
+255,2026/2/17,7,203,岡村,Right,,,2,0,0,,,,,,
+256,2026/2/17,7,204,岡村,Right,,,2,0,0,,,,,,
+257,2026/2/17,7,205,岡村,Right,,,2,0,0,,,,,,
+258,2026/2/17,7,206,岡村,Right,,,2,0,0,,,,,,
+259,2026/2/17,7,207,岡村,Right,,,2,0,0,,,,,,
+260,2026/2/17,7,208,岡村,Right,,,2,0,0,,,,,,
+261,2026/2/17,7,209,岡村,Right,,,2,0,0,,,,,,
+262,2026/2/17,7,210,岡村,Right,,,2,0,0,,,,,,
+263,2026/2/17,7,211,岡村,Right,,,2,0,0,,,,,,
+264,2026/2/17,7,212,岡村,Right,,,2,0,0,,,,,,
+265,2026/2/17,7,213,岡村,Right,,,2,0,0,,,,,,
+266,2026/2/17,7,214,岡村,Right,,,2,0,0,,,,,,
+267,2026/2/17,7,215,岡村,Right,,,2,0,0,,,,,,
+268,2026/2/17,7,216,岡村,Right,,,2,0,0,,,,,,
+269,2026/2/17,7,217,岡村,Right,,,2,0,0,,,,,,
+270,2026/2/17,7,218,岡村,Right,,,2,0,0,,,,,,
+271,2026/2/17,7,219,岡村,Right,,,2,0,0,,,,,,
+272,2026/2/17,7,220,岡村,Right,,,2,0,0,,,,,,
+273,2026/2/17,7,221,岡村,Right,,,2,0,0,,,,,,
+274,2026/2/17,7,222,岡村,Right,,,2,0,0,,,,,,
+275,2026/2/17,7,223,岡村,Right,,,2,0,0,,,,,,
+276,2026/2/17,7,224,岡村,Right,,,2,0,0,,,,,,
+277,2026/2/17,7,225,岡村,Right,,,2,0,0,,,,,,
