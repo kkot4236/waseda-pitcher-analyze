@@ -171,26 +171,36 @@ def render_movement_plot(f_data, key_suffix):
     if 'HorzBreak' not in f_data.columns or 'InducedVertBreak' not in f_data.columns:
         return st.info("変化量データ（HorzBreak, InducedVertBreak）が不足しています。")
 
-    # 散布図
+    # 散布図作成
     fig = px.scatter(
         f_data, x='HorzBreak', y='InducedVertBreak', color='TaggedPitchType',
         color_discrete_map=PITCH_COLORS,
         category_orders={'TaggedPitchType': PITCH_ORDER},
         hover_data=['RelSpeed'],
-        labels={'HorzBreak': '横の変化 (cm)', 'InducedVertBreak': '縦の変化 (cm)'}
+        labels={'HorzBreak': 'Horizontal Break (cm)', 'InducedVertBreak': 'Induced Vertical Break (cm)'}
     )
-    # レイアウト設定
+    
+    # グラフを正方形にし、軸の比率を固定
     fig.update_layout(
-        height=550,
-        xaxis=dict(title="Horizontal Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
-        yaxis=dict(title="Induced Vertical Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
+        width=600,
+        height=600,
+        xaxis=dict(
+            title="Horizontal Break (cm)", 
+            zeroline=True, zerolinewidth=1, zerolinecolor='black',
+            scaleanchor="y", scaleratio=1  # 縦横比を1:1に固定
+        ),
+        yaxis=dict(
+            title="Induced Vertical Break (cm)", 
+            zeroline=True, zerolinewidth=1, zerolinecolor='black'
+        ),
+        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
-    st.plotly_chart(fig, use_container_width=True, key=f"move_{key_suffix}")
+    st.plotly_chart(fig, use_container_width=False, key=f"move_{key_suffix}")
 
 def render_stats_tab(f_data, key_suffix, is_pitching=False):
     if f_data.empty: return st.warning("データなし")
     
-    # 🔴 小数点第一位にフォーマット
+    # 指標表示 (Metric)
     m1, m2, m3, m4, m5 = st.columns(5)
     fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
     m1.metric("投球数", f"{len(f_data)} 球")
@@ -204,7 +214,6 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
     
-    # 🔴 テーブル内も小数点第一位に修正
     disp = summary.copy()
     disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
     disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}")
@@ -219,7 +228,6 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
         st.pyplot(fig)
 
-    # カテゴリによって表示を分岐
     if is_pitching:
         render_movement_plot(f_data, key_suffix)
     else:
@@ -235,9 +243,7 @@ if df is not None:
     for i, cat in enumerate(cats):
         with tabs[i]:
             sub = df[df['DataCategory'] == cat]
-            if sub.empty: 
-                st.info(f"{cat} のデータがありません。")
-                continue
+            if sub.empty: continue
             
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
             c1, c2 = st.columns(2)
@@ -248,7 +254,6 @@ if df is not None:
             if p_sel != "すべて": f_sub = f_sub[f_sub['Pitcher'] == p_sel]
             if d_sel != "すべて": f_sub = f_sub[f_sub['Date'].astype(str) == d_sel]
             
-            # pitchingタブの場合のみ is_pitching=True を渡す
             render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_sel}", is_pitching=(cat == "pitching"))
 else:
     st.error("CSVなし")
