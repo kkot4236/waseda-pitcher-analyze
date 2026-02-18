@@ -164,7 +164,30 @@ def render_risk_management_section(f_data, key_suffix):
             fig_p.update_layout(xaxis=dict(range=[0, 100]), height=280, legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", title=""))
             st.plotly_chart(fig_p, use_container_width=True, key=f"risk_p_{key_suffix}")
 
-def render_stats_tab(f_data, key_suffix):
+def render_movement_plot(f_data, key_suffix):
+    st.divider()
+    st.write("#### ● 変化量プロット (Movement)")
+    
+    if 'HorzBreak' not in f_data.columns or 'InducedVertBreak' not in f_data.columns:
+        return st.info("変化量データ（HorzBreak, InducedVertBreak）が不足しています。")
+
+    # 散布図
+    fig = px.scatter(
+        f_data, x='HorzBreak', y='InducedVertBreak', color='TaggedPitchType',
+        color_discrete_map=PITCH_COLORS,
+        category_orders={'TaggedPitchType': PITCH_ORDER},
+        hover_data=['RelSpeed'],
+        labels={'HorzBreak': '横の変化 (cm)', 'InducedVertBreak': '縦の変化 (cm)'}
+    )
+    # レイアウト設定
+    fig.update_layout(
+        height=550,
+        xaxis=dict(title="Horizontal Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
+        yaxis=dict(title="Induced Vertical Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=f"move_{key_suffix}")
+
+def render_stats_tab(f_data, key_suffix, is_pitching=False):
     if f_data.empty: return st.warning("データなし")
     
     # 🔴 小数点第一位にフォーマット
@@ -196,8 +219,12 @@ def render_stats_tab(f_data, key_suffix):
         ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
         st.pyplot(fig)
 
-    render_risk_management_section(f_data, key_suffix)
-    render_count_analysis(f_data, key_suffix)
+    # カテゴリによって表示を分岐
+    if is_pitching:
+        render_movement_plot(f_data, key_suffix)
+    else:
+        render_risk_management_section(f_data, key_suffix)
+        render_count_analysis(f_data, key_suffix)
 
 # --- メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
@@ -208,7 +235,9 @@ if df is not None:
     for i, cat in enumerate(cats):
         with tabs[i]:
             sub = df[df['DataCategory'] == cat]
-            if sub.empty: continue
+            if sub.empty: 
+                st.info(f"{cat} のデータがありません。")
+                continue
             
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
             c1, c2 = st.columns(2)
@@ -219,6 +248,7 @@ if df is not None:
             if p_sel != "すべて": f_sub = f_sub[f_sub['Pitcher'] == p_sel]
             if d_sel != "すべて": f_sub = f_sub[f_sub['Date'].astype(str) == d_sel]
             
-            render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_sel}")
+            # pitchingタブの場合のみ is_pitching=True を渡す
+            render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_sel}", is_pitching=(cat == "pitching"))
 else:
     st.error("CSVなし")
