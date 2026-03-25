@@ -57,7 +57,7 @@ def load_all_data_from_folder(folder_path):
         
         if 'PitchCall' in temp_df.columns:
             pc = temp_df['PitchCall'].fillna("").astype(str).str.upper()
-            temp_df['is_strike'] = pc.apply(lambda x: 1 if x in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
+            temp_df['is_strike'] = pc.apply(lambda x: 1 if x in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY', 'STRIKE'] else 0)
             temp_df['is_swing'] = pc.apply(lambda x: 1 if x in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_whiff'] = pc.apply(lambda x: 1 if x in ['STRIKESWINGING'] else 0)
         
@@ -66,8 +66,11 @@ def load_all_data_from_folder(folder_path):
         
         for col in ['Date', 'Pitch Created At']:
             if col in temp_df.columns:
-                temp_df['Date'] = pd.to_datetime(temp_df[col]).dt.date
-                break
+                try:
+                    temp_df['Date'] = pd.to_datetime(temp_df[col]).dt.date
+                    break
+                except:
+                    continue
         if 'Date' not in temp_df.columns: temp_df['Date'] = pd.Timestamp.now().date()
         list_df.append(temp_df)
     
@@ -81,7 +84,7 @@ def render_count_analysis(f_data, key_suffix):
     with col_head: st.write("#### ● カウント別 投球割合")
     with col_opt: is_2s = st.checkbox("2ストライクのみ表示", key=f"2s_{key_suffix}")
 
-    if 'Balls' not in f_data.columns: return st.info("カウントデータ不足")
+    if 'Balls' not in f_data.columns or f_data.empty: return st.info("カウントデータ不足")
 
     df_c = f_data.copy()
     df_c['Count'] = df_c['Balls'].fillna(0).astype(int).astype(str) + "-" + df_c['Strikes'].fillna(0).astype(int).astype(str)
@@ -168,10 +171,9 @@ def render_movement_plot(f_data, key_suffix):
     st.divider()
     st.write("#### ● 変化量プロット (Movement)")
     
-    if 'HorzBreak' not in f_data.columns or 'InducedVertBreak' not in f_data.columns:
+    if 'HorzBreak' not in f_data.columns or 'InducedVertBreak' not in f_data.columns or f_data.empty:
         return st.info("変化量データ（HorzBreak, InducedVertBreak）が不足しています。")
 
-    # 散布図作成
     fig = px.scatter(
         f_data, x='HorzBreak', y='InducedVertBreak', color='TaggedPitchType',
         color_discrete_map=PITCH_COLORS,
@@ -180,25 +182,18 @@ def render_movement_plot(f_data, key_suffix):
         labels={'HorzBreak': 'Horizontal Break (cm)', 'InducedVertBreak': 'Induced Vertical Break (cm)'}
     )
     
-    # グラフを正方形にし、軸の比率を固定
     fig.update_layout(
-        width=600,
-        height=600,
-        xaxis=dict(
-            title="Horizontal Break (cm)", 
-            zeroline=True, zerolinewidth=1, zerolinecolor='black',
-            scaleanchor="y", scaleratio=1  # 縦横比を1:1に固定
-        ),
-        yaxis=dict(
-            title="Induced Vertical Break (cm)", 
-            zeroline=True, zerolinewidth=1, zerolinecolor='black'
-        ),
+        width=600, height=600,
+        xaxis=dict(title="Horizontal Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black', scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Induced Vertical Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
     st.plotly_chart(fig, use_container_width=False, key=f"move_{key_suffix}")
 
 def render_stats_tab(f_data, key_suffix, is_pitching=False):
-    if f_data.empty: return st.warning("データなし")
+    if f_data is None or f_data.empty: 
+        st.warning("表示できるデータがありません。")
+        return
     
     # 指標表示 (Metric)
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -207,13 +202,18 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty else "-")
     m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
-    m5.metric("初球スト", f"{(f_data[f_data.get('is_first_pitch',0)==1]['is_strike'].mean()*100):.1f} %")
+    first_pitch_data = f_data[f_data.get('is_first_pitch', 0) == 1]
+    m5.metric("初球スト", f"{(first_pitch_data['is_strike'].mean()*100):.1f} %" if not first_pitch_data.empty else "-")
 
     # テーブル集計
     summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'sum', 'is_whiff': 'sum'})
     summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
     
+    if summary.empty:
+        st.info("集計可能な球種データがありません。")
+        return
+
     disp = summary.copy()
     disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
     disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}")
@@ -224,9 +224,13 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     cl, cr = st.columns([2.3, 1])
     with cl: st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
     with cr:
-        fig, ax = plt.subplots(figsize=(2.8, 2.8))
-        ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
-        st.pyplot(fig)
+        if summary['投球数'].sum() > 0:
+            fig, ax = plt.subplots(figsize=(2.8, 2.8))
+            ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
+                   colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
+            st.pyplot(fig)
+        else:
+            st.write("投球データがありません")
 
     if is_pitching:
         render_movement_plot(f_data, key_suffix)
@@ -243,7 +247,9 @@ if df is not None:
     for i, cat in enumerate(cats):
         with tabs[i]:
             sub = df[df['DataCategory'] == cat]
-            if sub.empty: continue
+            if sub.empty: 
+                st.info(f"{cat} のデータは現在ありません。")
+                continue
             
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
             c1, c2 = st.columns(2)
@@ -256,4 +262,4 @@ if df is not None:
             
             render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_sel}", is_pitching=(cat == "pitching"))
 else:
-    st.error("CSVなし")
+    st.error("dataフォルダ内にCSVファイルが見つかりません。")
