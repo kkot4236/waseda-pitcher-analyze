@@ -17,7 +17,8 @@ PITCH_COLORS = {
 
 PITCH_MAP = {'FB': 'Fastball', 'CB': 'Curveball', 'CU': 'Curveball', 'SL': 'Slider', 'CT': 'Cutter', 'CH': 'ChangeUp', 'SF': 'Splitter', 'SP': 'Splitter', 'SI': 'Sinker'}
 
-@st.cache_data
+# キャッシュを一度クリアするためにttl（有効期限）を設定
+@st.cache_data(ttl=60)
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
     if not all_files: return None
@@ -60,6 +61,10 @@ def load_all_data_from_folder(folder_path):
             temp_df['is_strike'] = pc.apply(lambda x: 1 if x in ['Y', 'STRIKECALLED', 'STRIKESWINGING', 'FOULBALL', 'INPLAY', 'STRIKE'] else 0)
             temp_df['is_swing'] = pc.apply(lambda x: 1 if x in ['STRIKESWINGING', 'FOULBALL', 'INPLAY'] else 0)
             temp_df['is_whiff'] = pc.apply(lambda x: 1 if x in ['STRIKESWINGING'] else 0)
+        else:
+            temp_df['is_strike'] = 0
+            temp_df['is_swing'] = 0
+            temp_df['is_whiff'] = 0
         
         if 'Balls' in temp_df.columns and 'Strikes' in temp_df.columns:
             temp_df['is_first_pitch'] = ((temp_df['Balls'].fillna(0).astype(int) == 0) & (temp_df['Strikes'].fillna(0).astype(int) == 0)).astype(int)
@@ -205,17 +210,30 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     first_pitch_data = f_data[f_data.get('is_first_pitch', 0) == 1]
     m5.metric("初球スト", f"{(first_pitch_data['is_strike'].mean()*100):.1f} %" if not first_pitch_data.empty else "-")
 
-    # テーブル集計 (is_strikeのcountを用いてデータ欠損時の計算漏れを防ぐ)
-    summary = f_data.groupby('TaggedPitchType').agg({
-        'is_strike': ['count', 'mean'],
+    # 元コードの構造を維持しながら、確実に各球種の行数をカウントする安全な手法に変更
+    # 各球種の「データの行数そのもの」を取得
+    counts = f_data['TaggedPitchType'].value_counts()
+    
+    # 他の指標をgroupbyで集計
+    summary_metrics = f_data.groupby('TaggedPitchType').agg({
         'RelSpeed': ['mean', 'max'],
+        'is_strike': 'mean',
         'is_swing': 'sum',
         'is_whiff': 'sum'
     })
-    # カウント処理に影響のないよう、バックエンドでの列名順序を正しくマッピング
-    summary.columns = ['投球数', 'ストライク率', '平均球速', '最速', 'スイング数', '空振り数']
-    summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
+    summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
     
+    # 投球数を結合
+    summary = pd.DataFrame(index=summary_metrics.index)
+    summary['投球数'] = summary.index.map(counts).fillna(0).astype(int)
+    for col in summary_metrics.columns:
+        summary[col] = summary_metrics[col]
+        
+    # PITCH_ORDER順に並び替え
+    all_ordered_pitches = [p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]
+    summary = summary.reindex(all_ordered_pitches)
+    summary = summary[summary['投球数'] > 0] # 投球数が0より大きいものだけ残す
+
     if summary.empty:
         st.info("集計可能な球種データがありません。")
         return
