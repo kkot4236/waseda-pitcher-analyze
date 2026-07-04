@@ -8,6 +8,21 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
+# 【新規追加】表（st.table）の縦の幅（行の高さ）を完全に均等に揃えるためのカスタムCSS
+st.markdown("""
+    <style>
+    /* 表の全セル（ヘッダー・データ）の高さと上下位置を固定 */
+    div[data-testid="stTable"] table {
+        width: 100% !important;
+    }
+    div[data-testid="stTable"] th, div[data-testid="stTable"] td {
+        height: 48px !important;       /* 行の縦幅を一律に固定 */
+        vertical-align: middle !important; /* 文字の上下位置を中央に統一 */
+        padding: 6px 12px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 PITCH_ORDER = ["Fastball", "Slider", "Cutter", "Curveball", "ChangeUp", "Splitter", "TwoSeamFastBall", "OneSeam", "Sinker"]
 PITCH_COLORS = {
     "Fastball": "#AEC7E8", "Slider": "#FFBB78", "Cutter": "#98DF8A",
@@ -250,7 +265,6 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
 
     cl, cr = st.columns([2.3, 1])
     with cl: 
-        # 【重要】Streamlitの内部自動レンダリングによるドット(•)化を完全に防ぐためのクレンジング処理
         disp_clean = disp.astype(str).replace({
             'nan': '-', 'None': '-', 'nan%': '-', '•': '-', '.': '-', '': '-'
         })
