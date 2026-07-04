@@ -222,28 +222,27 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     })
     summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
     
-    # 実際にデータに存在する（投げられた）球種のみを抽出
+    # 実際にデータに存在する球種のみを抽出
     p_present = [p for p in PITCH_ORDER if p in summary_metrics.index] + [p for p in summary_metrics.index if p not in PITCH_ORDER]
     
     summary = pd.DataFrame(index=p_present)
     summary['投球数'] = summary.index.map(counts).fillna(0).astype(int)
     summary = summary.join(summary_metrics, how='left')
     
-    # 【本人が投げていない球種を除外】
+    # 本人が投げていない球種を除外
     summary = summary[summary['投球数'] > 0]
 
     if summary.empty:
         st.info("集計可能な球種データがありません。")
         return
 
-    # 表示用データフレームの構築（データがない箇所は確実にハイフン "-" に置換）
+    # 表示用データフレームの構築
     disp = pd.DataFrame(index=summary.index)
     disp['投球数'] = summary['投球数']
     
     total_pitches = summary['投球数'].sum()
-    disp['投球割合'] = summary['投球数'].apply(lambda x: f"{(x / total_pitches * 100):.1f}%" if total_pitches > 0 and x > 0 else "0.0%" if total_pitches > 0 else "-")
+    disp['投球割合'] = summary['投球数'].apply(lambda x: f"{(x / total_pitches * 100):.1f}%" if total_pitches > 0 and x > 0 else "0.0%")
     
-    # 各セルごとに値があるか厳密にチェックし、無ければドットではなく確実に "-" を入れる処理
     disp['平均球速'] = summary.apply(lambda r: f"{r['平均球速']:.1f}" if pd.notna(r['平均球速']) and r['平均球速'] > 0 else "-", axis=1)
     disp['最速'] = summary.apply(lambda r: f"{r['最速']:.1f}" if pd.notna(r['最速']) and r['最速'] > 0 else "-", axis=1)
     disp['ストライク率'] = summary.apply(lambda r: f"{(r['ストライク率'] * 100):.1f}%" if pd.notna(r['ストライク率']) else "-", axis=1)
@@ -251,7 +250,11 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
 
     cl, cr = st.columns([2.3, 1])
     with cl: 
-        st.table(disp)
+        # 【重要】Streamlitの内部自動レンダリングによるドット(•)化を完全に防ぐためのクレンジング処理
+        disp_clean = disp.astype(str).replace({
+            'nan': '-', 'None': '-', 'nan%': '-', '•': '-', '.': '-', '': '-'
+        })
+        st.table(disp_clean)
     with cr:
         if not summary.empty and summary['投球数'].sum() > 0:
             fig, ax = plt.subplots(figsize=(2.8, 2.8))
