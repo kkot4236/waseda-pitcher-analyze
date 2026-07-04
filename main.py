@@ -199,15 +199,20 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     m1, m2, m3, m4, m5 = st.columns(5)
     fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
     m1.metric("投球数", f"{len(f_data)} 球")
-    m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty else "-")
-    m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h")
+    m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty and pd.notna(fb['RelSpeed'].mean()) else "-")
+    m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h" if pd.notna(f_data['RelSpeed'].max()) else "-")
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
     first_pitch_data = f_data[f_data.get('is_first_pitch', 0) == 1]
     m5.metric("初球スト", f"{(first_pitch_data['is_strike'].mean()*100):.1f} %" if not first_pitch_data.empty else "-")
 
-    # テーブル集計
-    summary = f_data.groupby('TaggedPitchType').agg({'RelSpeed': ['count', 'mean', 'max'], 'is_strike': 'mean', 'is_swing': 'sum', 'is_whiff': 'sum'})
-    summary.columns = ['投球数', '平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
+    # テーブル集計 (is_strikeのcountを用いてデータ欠損時の計算漏れを防ぐ)
+    summary = f_data.groupby('TaggedPitchType').agg({
+        'is_strike': ['count', 'mean'],
+        'RelSpeed': ['mean', 'max'],
+        'is_swing': 'sum',
+        'is_whiff': 'sum'
+    })
+    summary.columns = ['投球数', 'ストライク率', '平均球速', '最速', 'スイング数', '空振り数']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
     
     if summary.empty:
@@ -215,8 +220,8 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         return
 
     disp = summary.copy()
-    disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}")
-    disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}")
+    disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "-")
+    disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "-")
     disp['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100).apply(lambda x: f"{x:.1f}%")
     disp['ストライク率'] = (summary['ストライク率'] * 100).apply(lambda x: f"{x:.1f}%")
     disp['Whiff %'] = (summary['空振り数'] / summary['スイング数'].replace(0, 1) * 100).apply(lambda x: f"{x:.1f}%")
