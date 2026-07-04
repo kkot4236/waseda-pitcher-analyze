@@ -212,6 +212,7 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         'is_swing': 'sum',
         'is_whiff': 'sum'
     })
+    # カウント処理に影響のないよう、バックエンドでの列名順序を正しくマッピング
     summary.columns = ['投球数', 'ストライク率', '平均球速', '最速', 'スイング数', '空振り数']
     summary = summary.reindex([p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]).dropna(subset=['投球数'])
     
