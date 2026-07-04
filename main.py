@@ -17,8 +17,7 @@ PITCH_COLORS = {
 
 PITCH_MAP = {'FB': 'Fastball', 'CB': 'Curveball', 'CU': 'Curveball', 'SL': 'Slider', 'CT': 'Cutter', 'CH': 'ChangeUp', 'SF': 'Splitter', 'SP': 'Splitter', 'SI': 'Sinker'}
 
-# キャッシュを一度クリアするためにttl（有効期限）を設定
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10)
 def load_all_data_from_folder(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
     if not all_files: return None
@@ -200,21 +199,21 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         st.warning("表示できるデータがありません。")
         return
     
-    # 指標表示 (Metric)
-    m1, m2, m3, m4, m5 = st.columns(5)
+    # 上部メトリクス表示用の計算
     fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
+    avg_speed = fb['RelSpeed'].mean() if not fb.empty else None
+    max_speed = f_data['RelSpeed'].max()
+    
+    m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("投球数", f"{len(f_data)} 球")
-    m2.metric("平均(直球)", f"{fb['RelSpeed'].mean():.1f} km/h" if not fb.empty and pd.notna(fb['RelSpeed'].mean()) else "-")
-    m3.metric("最速", f"{f_data['RelSpeed'].max():.1f} km/h" if pd.notna(f_data['RelSpeed'].max()) else "-")
+    m2.metric("平均(直球)", f"{avg_speed:.1f} km/h" if pd.notna(avg_speed) else "-")
+    m3.metric("最速", f"{max_speed:.1f} km/h" if pd.notna(max_speed) else "-")
     m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
     first_pitch_data = f_data[f_data.get('is_first_pitch', 0) == 1]
     m5.metric("初球スト", f"{(first_pitch_data['is_strike'].mean()*100):.1f} %" if not first_pitch_data.empty else "-")
 
-    # 元コードの構造を維持しながら、確実に各球種の行数をカウントする安全な手法に変更
-    # 各球種の「データの行数そのもの」を取得
+    # 球種ごとの基本集計
     counts = f_data['TaggedPitchType'].value_counts()
-    
-    # 他の指標をgroupbyで集計
     summary_metrics = f_data.groupby('TaggedPitchType').agg({
         'RelSpeed': ['mean', 'max'],
         'is_strike': 'mean',
@@ -223,35 +222,36 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     })
     summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
     
-    # 投球数を結合
-    summary = pd.DataFrame(index=summary_metrics.index)
+    # 表の縦幅を固定するため、PITCH_ORDERをベースにしてマスターテーブルを作成（投球数0の行も残す）
+    p_present = f_data['TaggedPitchType'].unique()
+    all_ordered_pitches = PITCH_ORDER + [p for p in p_present if p not in PITCH_ORDER]
+    
+    summary = pd.DataFrame(index=all_ordered_pitches)
     summary['投球数'] = summary.index.map(counts).fillna(0).astype(int)
-    for col in summary_metrics.columns:
-        summary[col] = summary_metrics[col]
-        
-    # PITCH_ORDER順に並び替え
-    all_ordered_pitches = [p for p in PITCH_ORDER if p in summary.index] + [p for p in summary.index if p not in PITCH_ORDER]
-    summary = summary.reindex(all_ordered_pitches)
-    summary = summary[summary['投球数'] > 0] # 投球数が0より大きいものだけ残す
+    summary = summary.join(summary_metrics, how='left')
 
-    if summary.empty:
-        st.info("集計可能な球種データがありません。")
-        return
-
-    disp = summary.copy()
-    disp['平均球速'] = summary['平均球速'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "-")
-    disp['最速'] = summary['最速'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "-")
-    disp['投球割合'] = (summary['投球数'] / summary['投球数'].sum() * 100).apply(lambda x: f"{x:.1f}%")
-    disp['ストライク率'] = (summary['ストライク率'] * 100).apply(lambda x: f"{x:.1f}%")
-    disp['Whiff %'] = (summary['空振り数'] / summary['スイング数'].replace(0, 1) * 100).apply(lambda x: f"{x:.1f}%")
+    # 表示用データフレームの構築（データがない箇所は確実にハイフン "-" に置換）
+    disp = pd.DataFrame(index=summary.index)
+    disp['投球数'] = summary['投球数']
+    
+    total_pitches = summary['投球数'].sum()
+    disp['投球割合'] = summary['投球数'].apply(lambda x: f"{(x / total_pitches * 100):.1f}%" if total_pitches > 0 and x > 0 else "0.0%" if total_pitches > 0 else "-")
+    
+    disp['平均球速'] = summary.apply(lambda r: f"{r['平均球速']:.1f}" if r['投球数'] > 0 and pd.notna(r['平均球速']) else "-", axis=1)
+    disp['最速'] = summary.apply(lambda r: f"{r['最速']:.1f}" if r['投球数'] > 0 and pd.notna(r['最速']) else "-", axis=1)
+    disp['ストライク率'] = summary.apply(lambda r: f"{(r['ストライク率'] * 100):.1f}%" if r['投球数'] > 0 and pd.notna(r['ストライク率']) else "-", axis=1)
+    disp['Whiff %'] = summary.apply(lambda r: f"{(r['空振り数'] / r['スイング数'] * 100):.1f}%" if r['投球数'] > 0 and r['スイング数'] > 0 else "-", axis=1)
 
     cl, cr = st.columns([2.3, 1])
-    with cl: st.table(disp[['投球数', '投球割合', '平均球速', '最速', 'ストライク率', 'Whiff %']])
+    with cl: 
+        st.table(disp)
     with cr:
-        if summary['投球数'].sum() > 0:
+        # パイチャートは実際に投球がある球種のみで描画
+        active_summary = summary[summary['投球数'] > 0]
+        if not active_summary.empty:
             fig, ax = plt.subplots(figsize=(2.8, 2.8))
-            ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
-                   colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
+            ax.pie(active_summary['投球数'], labels=active_summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
+                   colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in active_summary.index])
             st.pyplot(fig)
         else:
             st.write("投球データがありません")
