@@ -1,4 +1,3 @@
-Gemini との会話
 import pandas as pd
 
 import streamlit as st
