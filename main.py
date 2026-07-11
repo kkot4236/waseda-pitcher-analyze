@@ -104,23 +104,27 @@ def render_count_analysis(f_data, key_suffix):
     with col_head: st.write("#### ● カウント別 投球割合")
     with col_opt: is_2s = st.checkbox("2ストライクのみ表示", key=f"2s_{key_suffix}")
 
-    df_c = f_data.copy()
-    df_c['Count'] = df_c['Balls'].fillna(0).astype(int).astype(str) + "-" + df_c['Strikes'].fillna(0).astype(int).astype(str)
-    
-    order = ["0-2", "1-2", "2-2", "3-2"] if is_2s else ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
-    
-    pivot_df = df_c.groupby(['Count', 'TaggedPitchType']).size().unstack(fill_value=0)
-    total_series = df_c['TaggedPitchType'].value_counts()
-    pivot_df.loc['全体'] = total_series
-    pivot_df = pivot_df.fillna(0)
-    
-    pivot_pct = pivot_df.div(pivot_df.sum(axis=1), axis=0) * 100
-    existing_order = [c for c in order if c in pivot_pct.index] + ['全体']
-    pivot_pct = pivot_pct.reindex(existing_order)
-    
-    fig = px.bar(pivot_pct, x=pivot_pct.index, y=pivot_pct.columns, labels={'value': '割合 (%)', 'Count': 'カウント'}, color_discrete_map=PITCH_COLORS_HEX)
-    fig.update_layout(barmode='stack', legend_title_text='球種', height=400, margin=dict(t=20, b=20, l=20, r=20))
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        df_c = f_data.copy()
+        df_c['Count'] = df_c['Balls'].fillna(0).astype(int).astype(str) + "-" + df_c['Strikes'].fillna(0).astype(int).astype(str)
+        
+        order = ["0-2", "1-2", "2-2", "3-2"] if is_2s else ["0-0", "1-0", "0-1", "2-0", "1-1", "0-2", "3-0", "2-1", "1-2", "3-1", "2-2", "3-2"]
+        
+        pivot_df = df_c.groupby(['Count', 'TaggedPitchType']).size().unstack(fill_value=0)
+        total_series = df_c['TaggedPitchType'].value_counts()
+        pivot_df.loc['全体'] = total_series
+        pivot_df = pivot_df.fillna(0)
+        
+        pivot_pct = pivot_df.div(pivot_df.sum(axis=1), axis=0) * 100
+        existing_order = [c for c in order if c in pivot_pct.index] + ['全体']
+        pivot_pct = pivot_pct.reindex(existing_order)
+        
+        fig = px.bar(pivot_pct, x=pivot_pct.index, y=pivot_pct.columns, labels={'value': '割合 (%)', 'Count': 'カウント'}, color_discrete_map=PITCH_COLORS_HEX)
+        fig.update_layout(barmode='stack', legend_title_text='球種', height=400, margin=dict(t=20, b=20, l=20, r=20))
+        # use_container_width=Trueをwidth='stretch'に変更してエラー回避
+        st.plotly_chart(fig, width='stretch')
+    except Exception as e:
+        st.error("カウント別グラフの読み込みでエラーが発生しました。データ表でご確認ください。")
 
 def render_risk_management_section(f_data, key_suffix):
     if f_data.empty: return
@@ -150,32 +154,41 @@ def render_risk_management_section(f_data, key_suffix):
     c1, c2 = st.columns(2)
     with c1:
         st.write("**左右別**")
-        piv_side = f_risk.groupby(['BatterSide', 'ResultCategory']).size().unstack(fill_value=0)
-        piv_side_pct = piv_side.div(piv_side.sum(axis=1), axis=0) * 100
-        fig_side = px.bar(piv_side_pct, y=piv_side_pct.index, x=piv_side_pct.columns, orientation='h', barmode='stack', labels={'value':'割合(%)'})
-        fig_side.update_layout(height=250, margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig_side, use_container_width=True)
+        try:
+            piv_side = f_risk.groupby(['BatterSide', 'ResultCategory']).size().unstack(fill_value=0)
+            piv_side_pct = piv_side.div(piv_side.sum(axis=1), axis=0) * 100
+            fig_side = px.bar(piv_side_pct, y=piv_side_pct.index, x=piv_side_pct.columns, orientation='h', barmode='stack', labels={'value':'割合(%)'})
+            fig_side.update_layout(height=250, margin=dict(t=10, b=10, l=10, r=10))
+            st.plotly_chart(fig_side, width='stretch')
+        except:
+            st.info("データ数が不足しているため左右別グラフを表示できません。")
 
     with c2:
         st.write("**球種別**")
-        piv_pitch = f_risk.groupby(['TaggedPitchType', 'ResultCategory']).size().unstack(fill_value=0)
-        piv_pitch_pct = piv_pitch.div(piv_pitch.sum(axis=1), axis=0) * 100
-        fig_pitch = px.bar(piv_pitch_pct, y=piv_pitch_pct.index, x=piv_pitch_pct.columns, orientation='h', barmode='stack', labels={'value':'割合(%)'})
-        fig_pitch.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig_pitch, use_container_width=True)
+        try:
+            piv_pitch = f_risk.groupby(['TaggedPitchType', 'ResultCategory']).size().unstack(fill_value=0)
+            piv_pitch_pct = piv_pitch.div(piv_pitch.sum(axis=1), axis=0) * 100
+            fig_pitch = px.bar(piv_pitch_pct, y=piv_pitch_pct.index, x=piv_pitch_pct.columns, orientation='h', barmode='stack', labels={'value':'割合(%)'})
+            fig_pitch.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
+            st.plotly_chart(fig_pitch, width='stretch')
+        except:
+            st.info("データ数が不足しているため球種別グラフを表示できません。")
 
 def render_movement_plot(f_data, key_suffix):
     if 'HorzBreak' not in f_data.columns or 'InducedVertBreak' not in f_data.columns or f_data.empty:
         return
     st.divider()
     st.write("#### ● 変化量プロット (Movement)")
-    fig = px.scatter(f_data, x='HorzBreak', y='InducedVertBreak', color='TaggedPitchType',
-                     color_discrete_map=PITCH_COLORS_HEX, category_orders={"TaggedPitchType": PITCH_ORDER},
-                     labels={'HorzBreak': 'Horizontal Break (cm)', 'InducedVertBreak': 'Induced Vertical Break (cm)'})
-    fig.update_layout(xaxis=dict(range=[-60, 60]), yaxis=dict(range=[-60, 60]), height=500, width=500)
-    fig.add_shape(type="line", x0=-60, y0=0, x1=60, y1=0, line=dict(color="gray", width=1, dash="dash"))
-    fig.add_shape(type="line", x0=0, y0=-60, x1=0, y1=60, line=dict(color="gray", width=1, dash="dash"))
-    st.plotly_chart(fig)
+    try:
+        fig = px.scatter(f_data, x='HorzBreak', y='InducedVertBreak', color='TaggedPitchType',
+                         color_discrete_map=PITCH_COLORS_HEX, category_orders={"TaggedPitchType": PITCH_ORDER},
+                         labels={'HorzBreak': 'Horizontal Break (cm)', 'InducedVertBreak': 'Induced Vertical Break (cm)'})
+        fig.update_layout(xaxis=dict(range=[-60, 60]), yaxis=dict(range=[-60, 60]), height=500, width=500)
+        fig.add_shape(type="line", x0=-60, y0=0, x1=60, y1=0, line=dict(color="gray", width=1, dash="dash"))
+        fig.add_shape(type="line", x0=0, y0=-60, x1=0, y1=60, line=dict(color="gray", width=1, dash="dash"))
+        st.plotly_chart(fig)
+    except:
+        st.error("変化量散布図を描画できませんでした。")
 
 def render_stats_tab(f_data, key_suffix, is_pitching=False):
     if f_data is None or f_data.empty: 
@@ -244,12 +257,15 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         
     with cr:
         if total_pitches > 0:
-            colors = [PITCH_COLORS_HEX.get(x, '#333333') for x in summary.index]
-            fig, ax = plt.subplots(figsize=(4, 4))
-            ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, colors=colors, textprops={'fontsize': 8})
-            ax.axis('equal')
-            fig.patch.set_alpha(0.0)
-            st.pyplot(fig)
+            try:
+                colors = [PITCH_COLORS_HEX.get(x, '#333333') for x in summary.index]
+                fig, ax = plt.subplots(figsize=(4, 4))
+                ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, colors=colors, textprops={'fontsize': 8})
+                ax.axis('equal')
+                fig.patch.set_alpha(0.0)
+                st.pyplot(fig)
+            except:
+                st.info("円グラフの生成にスキップしました。")
 
     if is_pitching:
         render_movement_plot(df_stat, key_suffix)
