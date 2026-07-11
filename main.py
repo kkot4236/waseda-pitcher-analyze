@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 import os
-import matplotlib.pyplot as plt
 import glob
 import plotly.express as px
 
@@ -125,7 +124,7 @@ def render_count_analysis(f_data, key_suffix):
         fig = px.bar(pd.DataFrame(data_list), x='項目', y='割合(%)', color='球種', 
                      category_orders={'項目': display_order}, color_discrete_map=PITCH_COLORS)
         fig.update_layout(yaxis=dict(range=[0, 100]), height=350)
-        st.plotly_chart(fig, use_container_width=True, key=f"chart_cnt_{key_suffix}")
+        st.plotly_chart(fig, width='stretch', key=f"chart_cnt_{key_suffix}")
 
 def render_risk_management_section(f_data, key_suffix):
     st.divider()
@@ -168,7 +167,7 @@ def render_risk_management_section(f_data, key_suffix):
             fig_s = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                            color_discrete_map=color_map_risk, category_orders={'カテゴリ': cat_order})
             fig_s.update_layout(xaxis=dict(range=[0, 100]), height=280, showlegend=False)
-            st.plotly_chart(fig_s, use_container_width=True, key=f"risk_s_{key_suffix}")
+            st.plotly_chart(fig_s, width='stretch', key=f"risk_s_{key_suffix}")
 
     with c2:
         st.write("**球種別**")
@@ -184,7 +183,7 @@ def render_risk_management_section(f_data, key_suffix):
             fig_p = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                            color_discrete_map=color_map_risk, category_orders={'カテゴリ': cat_order})
             fig_p.update_layout(xaxis=dict(range=[0, 100]), height=280, legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", title=""))
-            st.plotly_chart(fig_p, use_container_width=True, key=f"risk_p_{key_suffix}")
+            st.plotly_chart(fig_p, width='stretch', key=f"risk_p_{key_suffix}")
 
 def render_movement_plot(f_data, key_suffix):
     st.divider()
@@ -207,24 +206,14 @@ def render_movement_plot(f_data, key_suffix):
         yaxis=dict(title="Induced Vertical Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
-    st.plotly_chart(fig, use_container_width=False, key=f"move_{key_suffix}")
+    st.plotly_chart(fig, width='content', key=f"move_{key_suffix}")
 
 def render_stats_tab(f_data, key_suffix, is_pitching=False):
     if f_data is None or f_data.empty: 
         st.warning("表示できるデータがありません。")
         return
     
-    # 完全に独立したデータフレームとして処理
     df_stat = f_data.copy()
-    
-    # ゴロ計算用のフラグを追加
-    if 'TaggedHitType' in df_stat.columns:
-        th = df_stat['TaggedHitType'].fillna("").astype(str).str.lower()
-        df_stat['is_ground'] = th.apply(lambda x: 1 if 'ground' in x else 0)
-        df_stat['is_batted'] = th.apply(lambda x: 1 if x in ['ground', 'fly', 'line', 'popup'] else 0)
-    else:
-        df_stat['is_ground'] = 0
-        df_stat['is_batted'] = 0
 
     # 上部メトリクス表示用の計算
     fb = df_stat[df_stat['TaggedPitchType'] == "Fastball"]
@@ -241,24 +230,30 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
 
     # 球種一覧を取得
     unique_pitches = df_stat['TaggedPitchType'].unique()
-    p_present = [p for p in PITCH_ORDER if p in unique_pitches] + [p for p in unique_pitches if p not in PITCH_ORDER]
+    p_present = [p for p in PITCH_ORDER if p in unique_pitches] + [p for p in unique_pitches if p not in unique_pitches]
     
-    # 安全にループ処理で集計表を作成（Pandasのバージョンによるaggバグを回避）
     summary_list = []
     for p in p_present:
         sub = df_stat[df_stat['TaggedPitchType'] == p]
         if sub.empty: continue
         
+        g_count = 0
+        b_count = 0
+        if 'TaggedHitType' in sub.columns:
+            hit_series = sub['TaggedHitType'].fillna("").astype(str).str.lower()
+            g_count = hit_series.str.contains('ground').sum()
+            b_count = hit_series.isin(['ground', 'fly', 'line', 'popup']).sum()
+            
         summary_list.append({
             '球種': p,
             '投球数': len(sub),
-            '平均球速': sub['RelSpeed'].mean(),
-            '最速': sub['RelSpeed'].max(),
+            '平均球速': sub['RelSpeed'].mean() if 'RelSpeed' in sub.columns else None,
+            '最速': sub['RelSpeed'].max() if 'RelSpeed' in sub.columns else None,
             'ストライク率': sub['is_strike'].mean(),
             'スイング数': sub['is_swing'].sum(),
             '空振り数': sub['is_whiff'].sum(),
-            'ゴロ数': sub['is_ground'].sum(),
-            '打球数': sub['is_batted'].sum()
+            'ゴロ数': g_count,
+            '打球数': b_count
         })
     
     summary = pd.DataFrame(summary_list)
@@ -288,11 +283,21 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         })
         st.table(disp_clean)
     with cr:
+        # 【クラッシュ対策】Matplotlibを完全に廃止し、セグフォの起きないPlotlyの円グラフに刷新
         if not summary.empty and summary['投球数'].sum() > 0:
-            fig, ax = plt.subplots(figsize=(2.8, 2.8))
-            ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
-                   colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
-            st.pyplot(fig)
+            df_pie = summary.reset_index()
+            fig_pie = px.pie(
+                df_pie, names='球種', values='投球数',
+                color='球種', color_discrete_map=PITCH_COLORS,
+                category_orders={'球種': PITCH_ORDER}
+            )
+            fig_pie.update_layout(
+                height=280, width=280,
+                margin=dict(l=10, r=10, t=10, b=10),
+                showlegend=False
+            )
+            fig_pie.update_traces(textinfo='label+percent', textposition='inside')
+            st.plotly_chart(fig_pie, width='content', key=f"pie_{key_suffix}")
         else:
             st.write("投球データがありません")
 
