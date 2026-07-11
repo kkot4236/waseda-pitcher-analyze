@@ -8,7 +8,7 @@ import plotly.express as px
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="Pitch Analysis Dashboard", layout="wide")
 
-# 【新規追加】表（st.table）の縦の幅（行の高さ）を完全に均等に揃えるためのカスタムCSS
+# 表（st.table）の縦の幅（行の高さ）を完全に均等に揃えるためのカスタムCSS
 st.markdown("""
     <style>
     /* 表の全セル（ヘッダー・データ）の高さと上下位置を固定 */
@@ -214,28 +214,40 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         st.warning("表示できるデータがありません。")
         return
     
+    # ゴロ率計算用のフラグと打球判定列を追加
+    f_data_cal = f_data.copy()
+    if 'TaggedHitType' in f_data_cal.columns:
+        th = f_data_cal['TaggedHitType'].fillna("").astype(str).str.lower()
+        f_data_cal['is_ground'] = th.apply(lambda x: 1 if 'ground' in x else 0)
+        f_data_cal['is_batted'] = th.apply(lambda x: 1 if x in ['ground', 'fly', 'line', 'popup'] else 0)
+    else:
+        f_data_cal['is_ground'] = 0
+        f_data_cal['is_batted'] = 0
+
     # 上部メトリクス表示用の計算
-    fb = f_data[f_data['TaggedPitchType'] == "Fastball"]
+    fb = f_data_cal[f_data_cal['TaggedPitchType'] == "Fastball"]
     avg_speed = fb['RelSpeed'].mean() if not fb.empty else None
-    max_speed = f_data['RelSpeed'].max()
+    max_speed = f_data_cal['RelSpeed'].max()
     
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("投球数", f"{len(f_data)} 球")
+    m1.metric("投球数", f"{len(f_data_cal)} 球")
     m2.metric("平均(直球)", f"{avg_speed:.1f} km/h" if pd.notna(avg_speed) else "-")
     m3.metric("最速", f"{max_speed:.1f} km/h" if pd.notna(max_speed) else "-")
-    m4.metric("スト率", f"{(f_data['is_strike'].mean()*100):.1f} %")
-    first_pitch_data = f_data[f_data.get('is_first_pitch', 0) == 1]
+    m4.metric("スト率", f"{(f_data_cal['is_strike'].mean()*100):.1f} %")
+    first_pitch_data = f_data_cal[f_data_cal.get('is_first_pitch', 0) == 1]
     m5.metric("初球スト", f"{(first_pitch_data['is_strike'].mean()*100):.1f} %" if not first_pitch_data.empty else "-")
 
-    # 球種ごとの基本集計
-    counts = f_data['TaggedPitchType'].value_counts()
-    summary_metrics = f_data.groupby('TaggedPitchType').agg({
+    # 球種ごとの基本集計にゴロ数・打球数を追加
+    counts = f_data_cal['TaggedPitchType'].value_counts()
+    summary_metrics = f_data_cal.groupby('TaggedPitchType').agg({
         'RelSpeed': ['mean', 'max'],
         'is_strike': 'mean',
         'is_swing': 'sum',
-        'is_whiff': 'sum'
+        'is_whiff': 'sum',
+        'is_ground': 'sum',
+        'is_batted': 'sum'
     })
-    summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
+    summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数', 'ゴロ数', '打球数']
     
     # 実際にデータに存在する球種のみを抽出
     p_present = [p for p in PITCH_ORDER if p in summary_metrics.index] + [p for p in summary_metrics.index if p not in PITCH_ORDER]
@@ -262,6 +274,9 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     disp['最速'] = summary.apply(lambda r: f"{r['最速']:.1f}" if pd.notna(r['最速']) and r['最速'] > 0 else "-", axis=1)
     disp['ストライク率'] = summary.apply(lambda r: f"{(r['ストライク率'] * 100):.1f}%" if pd.notna(r['ストライク率']) else "-", axis=1)
     disp['Whiff %'] = summary.apply(lambda r: f"{(r['空振り数'] / r['スイング数'] * 100):.1f}%" if r['スイング数'] > 0 and pd.notna(r['空振り数']) else "-", axis=1)
+    
+    # Whiff% の右側に「ゴロ率」を新規追加 (分母はフェア/ファウルの総打球数)
+    disp['ゴロ率'] = summary.apply(lambda r: f"{(r['ゴロ数'] / r['打球数'] * 100):.1f}%" if r['打球数'] > 0 and pd.notna(r['ゴロ数']) else "-", axis=1)
 
     cl, cr = st.columns([2.3, 1])
     with cl: 
@@ -279,10 +294,10 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
             st.write("投球データがありません")
 
     if is_pitching:
-        render_movement_plot(f_data, key_suffix)
+        render_movement_plot(f_data_cal, key_suffix)
     else:
-        render_risk_management_section(f_data, key_suffix)
-        render_count_analysis(f_data, key_suffix)
+        render_risk_management_section(f_data_cal, key_suffix)
+        render_count_analysis(f_data_cal, key_suffix)
 
 # --- メインロジック ---
 df = load_all_data_from_folder(os.path.join(os.path.dirname(__file__), "data"))
