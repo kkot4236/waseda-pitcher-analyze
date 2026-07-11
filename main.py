@@ -133,7 +133,6 @@ def render_count_analysis(f_data, key_suffix):
         fig = px.bar(pd.DataFrame(data_list), x='項目', y='割合(%)', color='球種', 
                      category_orders={'項目': display_order}, color_discrete_map=PITCH_COLORS)
         fig.update_layout(yaxis=dict(range=[0, 100]), height=350)
-        # 警告対策: use_container_width=True を width="stretch" に変更
         st.plotly_chart(fig, width="stretch", key=f"chart_cnt_{key_suffix}")
 
 def render_risk_management_section(f_data, key_suffix):
@@ -177,7 +176,6 @@ def render_risk_management_section(f_data, key_suffix):
             fig_s = px.bar(pd.DataFrame(side_list), y='対象', x='割合(%)', color='カテゴリ', orientation='h', 
                            color_discrete_map=color_map_risk, category_orders={'カテゴリ': cat_order})
             fig_s.update_layout(xaxis=dict(range=[0, 100]), height=280, showlegend=False)
-            # 警告対策: use_container_width=True を width="stretch" に変更
             st.plotly_chart(fig_s, width="stretch", key=f"risk_s_{key_suffix}")
 
     with c2:
@@ -194,7 +192,6 @@ def render_risk_management_section(f_data, key_suffix):
             fig_p = px.bar(pd.DataFrame(pitch_list), y='球種', x='割合(%)', color='カテゴリ', orientation='h', 
                            color_discrete_map=color_map_risk, category_orders={'カテゴリ': cat_order})
             fig_p.update_layout(xaxis=dict(range=[0, 100]), height=280, legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", title=""))
-            # 警告対策: use_container_width=True を width="stretch" に変更
             st.plotly_chart(fig_p, width="stretch", key=f"risk_p_{key_suffix}")
 
 def render_movement_plot(f_data, key_suffix):
@@ -218,7 +215,6 @@ def render_movement_plot(f_data, key_suffix):
         yaxis=dict(title="Induced Vertical Break (cm)", zeroline=True, zerolinewidth=1, zerolinecolor='black'),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
-    # 元コード通り横幅固定のためuse_container_widthはFalse（明示的に指定しない）
     st.plotly_chart(fig, key=f"move_{key_suffix}")
 
 def render_stats_tab(f_data, key_suffix, is_pitching=False):
@@ -286,9 +282,10 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
             fig, ax = plt.subplots(figsize=(2.8, 2.8))
             ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False, 
                    colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
-            # 警告対策: use_container_width の代わりに width="stretch" を適用
-            st.pyplot(fig, width="stretch")
-            plt.close(fig)  # メモリリーク（セグフォの第2要因）防止のために明示的にクローズ
+            
+            # 【重要修正】st.pyplot には width引数は存在しないため、引数をすべて削除
+            st.pyplot(fig)
+            plt.close(fig)  
         else:
             st.write("投球データがありません")
 
