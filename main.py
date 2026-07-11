@@ -237,17 +237,20 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     first_pitch_data = f_data_cal[f_data_cal.get('is_first_pitch', 0) == 1]
     m5.metric("初球スト", f"{(first_pitch_data['is_strike'].mean()*100):.1f} %" if not first_pitch_data.empty else "-")
 
-    # 球種ごとの基本集計にゴロ数・打球数を追加
+    # 球種ごとの基本集計（クラッシュ防止のためマルチインデックスを避けて1カラムずつ集計）
     counts = f_data_cal['TaggedPitchType'].value_counts()
-    summary_metrics = f_data_cal.groupby('TaggedPitchType').agg({
-        'RelSpeed': ['mean', 'max'],
-        'is_strike': 'mean',
-        'is_swing': 'sum',
-        'is_whiff': 'sum',
-        'is_ground': 'sum',
-        'is_batted': 'sum'
+    
+    # グループ化して各指標を計算
+    grouped = f_data_cal.groupby('TaggedPitchType')
+    summary_metrics = pd.DataFrame({
+        '平均球速': grouped['RelSpeed'].mean(),
+        '最速': grouped['RelSpeed'].max(),
+        'ストライク率': grouped['is_strike'].mean(),
+        'スイング数': grouped['is_swing'].sum(),
+        '空振り数': grouped['is_whiff'].sum(),
+        'ゴロ数': grouped['is_ground'].sum(),
+        '打球数': grouped['is_batted'].sum()
     })
-    summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数', 'ゴロ数', '打球数']
     
     # 実際にデータに存在する球種のみを抽出
     p_present = [p for p in PITCH_ORDER if p in summary_metrics.index] + [p for p in summary_metrics.index if p not in PITCH_ORDER]
@@ -275,7 +278,7 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     disp['ストライク率'] = summary.apply(lambda r: f"{(r['ストライク率'] * 100):.1f}%" if pd.notna(r['ストライク率']) else "-", axis=1)
     disp['Whiff %'] = summary.apply(lambda r: f"{(r['空振り数'] / r['スイング数'] * 100):.1f}%" if r['スイング数'] > 0 and pd.notna(r['空振り数']) else "-", axis=1)
     
-    # Whiff% の右側に「ゴロ率」を新規追加 (分母はフェア/ファウルの総打球数)
+    # Whiff% の右側に「ゴロ率」を追加
     disp['ゴロ率'] = summary.apply(lambda r: f"{(r['ゴロ数'] / r['打球数'] * 100):.1f}%" if r['打球数'] > 0 and pd.notna(r['ゴロ数']) else "-", axis=1)
 
     cl, cr = st.columns([2.3, 1])
