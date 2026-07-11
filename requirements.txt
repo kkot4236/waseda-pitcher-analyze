@@ -1,5 +1,5 @@
-pandas<2.2.0
-streamlit>=1.35.0
-matplotlib
-plotly
-altair<5
+streamlit==1.38.0
+pandas==2.2.2
+numpy==1.26.4
+matplotlib==3.8.4
+plotly==5.24.1
