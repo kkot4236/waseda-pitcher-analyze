@@ -244,6 +244,21 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     })
     summary_metrics.columns = ['平均球速', '最速', 'ストライク率', 'スイング数', '空振り数']
 
+    # ゴロ率算出用の集計(TaggedHitTypeを基に、打球のうちゴロだった割合を計算)
+    if 'TaggedHitType' in f_data.columns:
+        hit_type_lower = f_data['TaggedHitType'].fillna('').astype(str).str.lower()
+        gb_flags = pd.DataFrame({
+            'TaggedPitchType': f_data['TaggedPitchType'],
+            'is_bip': (hit_type_lower.str.strip() != '').astype(int),
+            'is_groundball': hit_type_lower.str.contains('ground').astype(int)
+        })
+    else:
+        gb_flags = pd.DataFrame({'TaggedPitchType': f_data['TaggedPitchType'], 'is_bip': 0, 'is_groundball': 0})
+
+    gb_summary = gb_flags.groupby('TaggedPitchType').agg({'is_bip': 'sum', 'is_groundball': 'sum'})
+    gb_summary.columns = ['打球数', 'ゴロ数']
+    summary_metrics = summary_metrics.join(gb_summary, how='left')
+
     # 実際にデータに存在する球種のみを抽出
     p_present = [p for p in PITCH_ORDER if p in summary_metrics.index] + [p for p in summary_metrics.index if p not in PITCH_ORDER]
 
@@ -269,6 +284,7 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
     disp['最速'] = summary.apply(lambda r: f"{r['最速']:.1f}" if pd.notna(r['最速']) and r['最速'] > 0 else "-", axis=1)
     disp['ストライク率'] = summary.apply(lambda r: f"{(r['ストライク率'] * 100):.1f}%" if pd.notna(r['ストライク率']) else "-", axis=1)
     disp['Whiff %'] = summary.apply(lambda r: f"{(r['空振り数'] / r['スイング数'] * 100):.1f}%" if r['スイング数'] > 0 and pd.notna(r['空振り数']) else "-", axis=1)
+    disp['ゴロ率'] = summary.apply(lambda r: f"{(r['ゴロ数'] / r['打球数'] * 100):.1f}%" if pd.notna(r.get('打球数')) and r.get('打球数', 0) > 0 else "-", axis=1)
 
     cl, cr = st.columns([2.3, 1])
     with cl:
