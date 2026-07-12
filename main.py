@@ -216,6 +216,37 @@ def render_movement_plot(f_data, key_suffix):
     st.plotly_chart(fig, use_container_width=False, key=f"move_{key_suffix}")
 
 
+def render_speed_trend(f_data, key_suffix):
+    st.divider()
+    st.write("#### ● 球数推移による球速変化")
+
+    if f_data.empty or 'RelSpeed' not in f_data.columns:
+        return st.info("球速データが不足しています。")
+
+    df_trend = f_data.copy()
+
+    # 投球の時系列順を揃える(タイムスタンプ列があればそれで並び替え、なければ元の並び順を使用)
+    if 'Pitch Created At' in df_trend.columns:
+        try:
+            df_trend['_sort_ts'] = pd.to_datetime(df_trend['Pitch Created At'])
+            df_trend = df_trend.sort_values('_sort_ts')
+        except Exception:
+            pass
+
+    df_trend = df_trend.reset_index(drop=True)
+    df_trend['球数'] = df_trend.index + 1
+
+    fig = px.line(
+        df_trend, x='球数', y='RelSpeed', color='TaggedPitchType',
+        color_discrete_map=PITCH_COLORS,
+        category_orders={'TaggedPitchType': PITCH_ORDER},
+        markers=True,
+        labels={'球数': '球数', 'RelSpeed': '球速 (km/h)'}
+    )
+    fig.update_layout(height=380)
+    st.plotly_chart(fig, use_container_width=True, key=f"speed_trend_{key_suffix}")
+
+
 def render_stats_tab(f_data, key_suffix, is_pitching=False):
     if f_data is None or f_data.empty:
         st.warning("表示できるデータがありません。")
@@ -305,6 +336,8 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
             st.plotly_chart(fig_pie, use_container_width=True, key=f"pie_{key_suffix}")
         else:
             st.write("投球データがありません")
+
+    render_speed_trend(f_data, key_suffix)
 
     if is_pitching:
         render_movement_plot(f_data, key_suffix)
