@@ -227,33 +227,37 @@ def render_speed_trend(f_data, key_suffix):
 
     df_trend = f_data.copy()
 
-    # 投球の時系列順を揃える(PitchNo列があれば最優先で使用。実際に投げた順番を正確に表すため)
+    # 実際に投げた順番を表す並び替えキー(PitchNo列があれば最優先で使用)
     if 'PitchNo' in df_trend.columns:
-        try:
-            df_trend['_sort_key'] = pd.to_numeric(df_trend['PitchNo'], errors='coerce')
-            df_trend = df_trend.sort_values('_sort_key')
-        except Exception:
-            pass
+        df_trend['_sort_key'] = pd.to_numeric(df_trend['PitchNo'], errors='coerce')
     elif 'Pitch Created At' in df_trend.columns:
         try:
             df_trend['_sort_key'] = pd.to_datetime(df_trend['Pitch Created At'])
-            df_trend = df_trend.sort_values('_sort_key')
         except Exception:
-            pass
+            df_trend['_sort_key'] = range(len(df_trend))
+    else:
+        df_trend['_sort_key'] = range(len(df_trend))
 
-    df_trend = df_trend.reset_index(drop=True)
-    df_trend['球数'] = df_trend.index + 1
+    # 日付ごとに正しい投球順に並び替えた上で、日付(=試合)ごとに球数を1球目からリセットする
+    # これにより、複数試合分のデータを選択していても「その試合の何球目か」で正しく揃えられる
+    df_trend = df_trend.sort_values(['Date', '_sort_key'])
+    df_trend['球数'] = df_trend.groupby('Date').cumcount() + 1
 
-    # 指定した球数ごとにグループ分け(例: 10球ずつ「1-10」「11-20」…)
-    df_trend['bucket'] = df_trend.index // bucket_size
-    bucket_ranges = df_trend.groupby('bucket')['球数'].agg(['min', 'max'])
-    bucket_ranges['label'] = bucket_ranges.apply(lambda r: f"{int(r['min'])}-{int(r['max'])}", axis=1)
-    label_order = bucket_ranges['label'].tolist()
+    n_games = df_trend['Date'].nunique()
 
-    df_trend = df_trend.merge(bucket_ranges['label'], left_on='bucket', right_index=True)
+    # 指定した球数ごとにグループ分け(例: 10球ずつ「1-10」「11-20」…)固定区間で揃えることで、試合をまたいだ集計ができる
+    df_trend['bucket'] = (df_trend['球数'] - 1) // bucket_size
+    df_trend['label'] = df_trend['bucket'].apply(lambda b: f"{int(b) * bucket_size + 1}-{(int(b) + 1) * bucket_size}")
 
+    max_bucket = int(df_trend['bucket'].max())
+    label_order = [f"{b * bucket_size + 1}-{(b + 1) * bucket_size}" for b in range(max_bucket + 1)]
+
+    # 全試合をまとめて、同じ球数区間・球種ごとに平均球速を算出
     grouped = df_trend.groupby(['bucket', 'label', 'TaggedPitchType'], as_index=False)['RelSpeed'].mean()
     grouped = grouped.sort_values('bucket')
+
+    if n_games > 1:
+        st.caption(f"※ {n_games}試合分のデータを、球数区間ごとに平均して表示しています。")
 
     fig = px.line(
         grouped, x='label', y='RelSpeed', color='TaggedPitchType',
