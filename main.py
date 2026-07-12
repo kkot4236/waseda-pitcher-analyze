@@ -1,9 +1,6 @@
 import pandas as pd
 import streamlit as st
 import os
-import matplotlib
-matplotlib.use("Agg")  # サーバー環境でのクラッシュ(Segmentation fault)を防ぐため、GUIを使わないバックエンドを明示的に指定
-import matplotlib.pyplot as plt
 import glob
 import plotly.express as px
 
@@ -281,11 +278,15 @@ def render_stats_tab(f_data, key_suffix, is_pitching=False):
         st.table(disp_clean)
     with cr:
         if not summary.empty and summary['投球数'].sum() > 0:
-            fig, ax = plt.subplots(figsize=(2.8, 2.8))
-            ax.pie(summary['投球数'], labels=summary.index, autopct='%1.1f%%', startangle=90, counterclock=False,
-                   colors=[PITCH_COLORS.get(l, "#9EDAE5") for l in summary.index])
-            st.pyplot(fig)
-            plt.close(fig)  # Figureを明示的に閉じてリソースを解放(クラッシュ防止)
+            pie_df = summary.reset_index().rename(columns={'index': '球種'})
+            fig_pie = px.pie(
+                pie_df, names='球種', values='投球数',
+                color='球種', color_discrete_map=PITCH_COLORS,
+                category_orders={'球種': list(summary.index)}
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label', showlegend=False)
+            fig_pie.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=280)
+            st.plotly_chart(fig_pie, use_container_width=True, key=f"pie_{key_suffix}")
         else:
             st.write("投球データがありません")
 
