@@ -218,7 +218,9 @@ def render_movement_plot(f_data, key_suffix):
 
 def render_speed_trend(f_data, key_suffix):
     st.divider()
-    st.write("#### ● 球数推移による球速変化")
+    col_head, col_opt = st.columns([3, 1])
+    with col_head: st.write("#### ● 球数推移による球速変化")
+    with col_opt: bucket_size = st.selectbox("区切り球数", [5, 10, 15, 20], index=1, key=f"bucket_{key_suffix}")
 
     if f_data.empty or 'RelSpeed' not in f_data.columns:
         return st.info("球速データが不足しています。")
@@ -236,12 +238,23 @@ def render_speed_trend(f_data, key_suffix):
     df_trend = df_trend.reset_index(drop=True)
     df_trend['球数'] = df_trend.index + 1
 
+    # 指定した球数ごとにグループ分け(例: 10球ずつ「1-10」「11-20」…)
+    df_trend['bucket'] = df_trend.index // bucket_size
+    bucket_ranges = df_trend.groupby('bucket')['球数'].agg(['min', 'max'])
+    bucket_ranges['label'] = bucket_ranges.apply(lambda r: f"{int(r['min'])}-{int(r['max'])}", axis=1)
+    label_order = bucket_ranges['label'].tolist()
+
+    df_trend = df_trend.merge(bucket_ranges['label'], left_on='bucket', right_index=True)
+
+    grouped = df_trend.groupby(['bucket', 'label', 'TaggedPitchType'], as_index=False)['RelSpeed'].mean()
+    grouped = grouped.sort_values('bucket')
+
     fig = px.line(
-        df_trend, x='球数', y='RelSpeed', color='TaggedPitchType',
+        grouped, x='label', y='RelSpeed', color='TaggedPitchType',
         color_discrete_map=PITCH_COLORS,
-        category_orders={'TaggedPitchType': PITCH_ORDER},
+        category_orders={'TaggedPitchType': PITCH_ORDER, 'label': label_order},
         markers=True,
-        labels={'球数': '球数', 'RelSpeed': '球速 (km/h)'}
+        labels={'label': f'球数区間({bucket_size}球ごと)', 'RelSpeed': '平均球速 (km/h)'}
     )
     fig.update_layout(height=380)
     st.plotly_chart(fig, use_container_width=True, key=f"speed_trend_{key_suffix}")
