@@ -227,11 +227,17 @@ def render_speed_trend(f_data, key_suffix):
 
     df_trend = f_data.copy()
 
-    # 投球の時系列順を揃える(タイムスタンプ列があればそれで並び替え、なければ元の並び順を使用)
-    if 'Pitch Created At' in df_trend.columns:
+    # 投球の時系列順を揃える(PitchNo列があれば最優先で使用。実際に投げた順番を正確に表すため)
+    if 'PitchNo' in df_trend.columns:
         try:
-            df_trend['_sort_ts'] = pd.to_datetime(df_trend['Pitch Created At'])
-            df_trend = df_trend.sort_values('_sort_ts')
+            df_trend['_sort_key'] = pd.to_numeric(df_trend['PitchNo'], errors='coerce')
+            df_trend = df_trend.sort_values('_sort_key')
+        except Exception:
+            pass
+    elif 'Pitch Created At' in df_trend.columns:
+        try:
+            df_trend['_sort_key'] = pd.to_datetime(df_trend['Pitch Created At'])
+            df_trend = df_trend.sort_values('_sort_key')
         except Exception:
             pass
 
