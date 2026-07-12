@@ -386,14 +386,21 @@ if df is not None:
                 continue
 
             p_list = sorted([str(p) for p in sub['Pitcher'].unique() if p != "Unknown"])
+            date_options = sorted(sub['Date'].unique().astype(str), reverse=True)
+
             c1, c2 = st.columns(2)
             p_sel = c1.selectbox("投手を選択", ["すべて"] + p_list, key=f"sel_p_{i}")
-            d_sel = c2.selectbox("日付を選択", ["すべて"] + sorted(sub['Date'].unique().astype(str), reverse=True), key=f"sel_d_{i}")
+            d_sel = c2.multiselect("日付を選択(複数選択可)", date_options, default=date_options, key=f"sel_d_{i}")
+
+            if not d_sel:
+                st.info("日付を1つ以上選択してください。")
+                continue
 
             f_sub = sub.copy()
             if p_sel != "すべて": f_sub = f_sub[f_sub['Pitcher'] == p_sel]
-            if d_sel != "すべて": f_sub = f_sub[f_sub['Date'].astype(str) == d_sel]
+            f_sub = f_sub[f_sub['Date'].astype(str).isin(d_sel)]
 
-            render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_sel}", is_pitching=(cat == "pitching"))
+            d_key = "_".join(d_sel) if len(d_sel) < len(date_options) else "all"
+            render_stats_tab(f_sub, f"tab_{i}_{p_sel}_{d_key}", is_pitching=(cat == "pitching"))
 else:
     st.error("dataフォルダ内にCSVファイルが見つかりません。")
