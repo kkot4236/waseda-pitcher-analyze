@@ -241,7 +241,10 @@ def render_speed_trend(f_data, key_suffix):
     # 日付ごとに正しい投球順に並び替えた上で、日付(=試合)ごとに球数を1球目からリセットする
     # これにより、複数試合分のデータを選択していても「その試合の何球目か」で正しく揃えられる
     df_trend = df_trend.sort_values(['Date', '_sort_key'])
-    df_trend['球数'] = df_trend.groupby('Date').cumcount() + 1
+    df_trend['球数'] = df_trend.groupby('Date', dropna=False).cumcount() + 1
+    df_trend = df_trend[df_trend['球数'].notna()]
+    if df_trend.empty:
+        return st.info("球速データが不足しています。")
 
     n_games = df_trend['Date'].nunique()
 
