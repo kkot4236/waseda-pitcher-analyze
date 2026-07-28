@@ -34,6 +34,13 @@ PITCH_COLORS = {
 
 PITCH_MAP = {'FB': 'Fastball', 'CB': 'Curveball', 'CU': 'Curveball', 'SL': 'Slider', 'CT': 'Cutter', 'CH': 'ChangeUp', 'SF': 'Splitter', 'SP': 'Splitter', 'SI': 'Sinker'}
 
+# 数値として扱うべき列(CSVに空欄・"-"・単位付き文字列などが混ざっていても
+# ここで数値型に変換しておくことで、後段の.mean()/.max()でのTypeErrorを防ぐ
+NUMERIC_COLS = [
+    'RelSpeed', 'InducedVertBreak', 'HorzBreak', 'PlateLocSide', 'PlateLocHeight',
+    'SpinRate', 'Extension', 'PitchNo', 'Balls', 'Strikes'
+]
+
 
 @st.cache_data(ttl=10)
 def load_all_data_from_folder(folder_path):
@@ -55,6 +62,16 @@ def load_all_data_from_folder(folder_path):
             'PlateLocSide (CM)': 'PlateLocSide', 'PlateLocHeight (CM)': 'PlateLocHeight'
         }
         temp_df = temp_df.rename(columns=rename_dict)
+
+        # --- 数値列を明示的に変換(ここが今回の修正ポイント) ---
+        # CSV内に空文字・"-"・全角数字・単位付き文字列などが混じっていると
+        # その列全体がobject型(文字列)として読み込まれ、後段の.mean()等で
+        # 「文字列と数値が混在しているためsumできない」TypeErrorが発生する。
+        # pd.to_numeric(..., errors='coerce')で数値化できない値はNaNにし、
+        # 統計計算では自動的に無視されるようにする。
+        for col in NUMERIC_COLS:
+            if col in temp_df.columns:
+                temp_df[col] = pd.to_numeric(temp_df[col], errors='coerce')
 
         p_col = 'Pitcher First Name' if 'Pitcher First Name' in temp_df.columns else 'Pitcher'
         temp_df['Pitcher'] = temp_df[p_col].fillna("Unknown").astype(str).str.strip() if p_col in temp_df.columns else "Unknown"
